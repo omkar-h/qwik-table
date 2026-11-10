@@ -1,5 +1,4 @@
-import { Counter } from "./components/counter/counter";
-import { Logo } from "./components/logo/logo";
+import { QwikTable } from "./components/qwikTable/qwikTable";
 
 export default () => {
   return (
@@ -9,8 +8,20 @@ export default () => {
         <title>Qwik Blank App</title>
       </head>
       <body>
-        <Logo />
-        <Counter />
+        <QwikTable
+          columnConfig={[
+            { id: "firstName", label: "First Name" },
+            { id: "lastName", label: "Last Name" },
+            { id: "age", label: "age" },
+          ]}
+          rowData={[
+            {
+              firstName: "Omkar",
+              lastName: "Hankare",
+              age: 27,
+            },
+          ]}
+        />
       </body>
     </>
   );
