@@ -23,6 +23,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
+    "commit": "cz",
     "build": "qwik build",
     "build.lib": "vite build --mode lib",
     "build.types": "tsc --emitDeclarationOnly",
@@ -40,6 +41,8 @@
     "@builder.io/qwik": "1.20.4",
     "@eslint/js": "^9",
     "@types/node": "20.19.0",
+    "commitizen": "^4.3.2",
+    "cz-conventional-changelog": "^3.3.0",
     "eslint": "9.32.0",
     "eslint-plugin-qwik": "1.20.4",
     "globals": "16.4.0",
@@ -50,5 +53,10 @@
     "undici": "*",
     "vite": "7.3.7",
     "vite-tsconfig-paths": "^4.2.1"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   }
 }
