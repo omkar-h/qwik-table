@@ -26,9 +26,9 @@
   "types": "./lib-types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./lib-types/index.d.ts",
       "import": "./lib/index.qwik.mjs",
-      "require": "./lib/index.qwik.cjs",
-      "types": "./lib-types/index.d.ts"
+      "require": "./lib/index.qwik.cjs"
     }
   },
   "files": [
@@ -48,7 +48,7 @@
     "cz": "cz",
     "build": "qwik build",
     "build.lib": "vite build --mode lib",
-    "build.types": "tsc --emitDeclarationOnly",
+    "build.types": "tsc --emitDeclarationOnly --incremental false",
     "prepublishOnly": "pnpm run build.lib && pnpm run build.types",
     "dev": "vite --mode ssr",
     "dev.debug": "node --inspect-brk ./node_modules/vite/bin/vite.js --mode ssr --force",
