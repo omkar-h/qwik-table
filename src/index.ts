@@ -3,4 +3,6 @@ export type {
   ColumnConfig,
   QwikTableProps,
   SortState,
+  SortDirection,
+  TableClassNames,
 } from "./components/qwikTable/types";

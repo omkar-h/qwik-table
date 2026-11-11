@@ -1,31 +1,19 @@
 import { component$, useStore, useComputed$, $ } from "@builder.io/qwik";
-import type { SortState, QwikTableProps } from "./types";
+import type { SortState, SortDirection, QwikTableProps } from "./types";
+
+/** Joins truthy CSS class strings cleanly without extra spaces. */
+const cx = (...classes: (string | undefined)[]): string | undefined => {
+  const joined = classes.filter(Boolean).join(" ");
+  return joined || undefined;
+};
 
 /**
- * A headless, zero-hydration data table component built natively for Qwik.
+ * A headless, unstyled data table component built natively for Qwik.
  *
- * Renders semantic HTML `<table>` markup without opinionated styles, supporting
- * lazy-loaded single-column sorting, custom QRL cell renderers, and server-side
- * manual sorting hooks.
+ * Renders clean semantic HTML `<table>` markup with zero hardcoded styles or icons,
+ * supporting lazy-loaded sorting, slot-based styling, and custom QRL renderers.
  *
  * @template T - The data interface representing a single row object.
- *
- * @example
- * // 1. Inline column configuration (automatic type inference)
- * <QwikTable
- *   rowData={users}
- *   columnConfig={[
- *     { id: "firstName", label: "First Name", sortable: true },
- *     { id: "age", label: "Age", render$: $((val) => <b>{String(val)}</b>) },
- *   ]}
- * />
- *
- * @example
- * // 2. Extracted column configuration (explicit generic typing)
- * const columns: ColumnConfig<User>[] = [
- *   { id: "firstName", label: "First Name", sortable: true },
- * ];
- * <QwikTable rowData={users} columnConfig={columns} />
  */
 export const QwikTable = component$(
   <T extends object = Record<string, unknown>>(props: QwikTableProps<T>) => {
@@ -73,13 +61,16 @@ export const QwikTable = component$(
     });
 
     return (
-      <div>
-        <table>
-          <thead>
-            <tr>
+      <div class={props.classNames?.container}>
+        <table class={props.classNames?.table}>
+          <thead class={props.classNames?.thead}>
+            <tr class={props.classNames?.headerRow}>
               {props.columnConfig.map((col) => {
-                const isCurrentSort = sortState.columnId === String(col.id);
                 const targetId = String(col.id);
+                const isCurrentSort = sortState.columnId === targetId;
+                const currentDirection: SortDirection = isCurrentSort
+                  ? sortState.direction
+                  : null;
 
                 const clickAction$ = col.sortable
                   ? $(() => handleSort(targetId))
@@ -89,29 +80,30 @@ export const QwikTable = component$(
                   <th
                     key={targetId}
                     onClick$={clickAction$}
-                    style={
-                      col.sortable
-                        ? { cursor: "pointer", userSelect: "none" }
-                        : undefined
-                    }
+                    class={cx(props.classNames?.th, col.headerClass)}
+                    data-sortable={col.sortable ? "true" : undefined}
+                    data-sort={currentDirection ?? undefined}
                   >
-                    {col.label}
-                    {isCurrentSort &&
-                      (sortState.direction === "asc" ? " ▲" : " ▼")}
+                    {col.headerRender$
+                      ? col.headerRender$(col, currentDirection)
+                      : col.label}
                   </th>
                 );
               })}
             </tr>
           </thead>
-          <tbody>
+          <tbody class={props.classNames?.tbody}>
             {sortedRows.value.map((row, rowIndex) => (
-              <tr key={rowIndex}>
+              <tr key={rowIndex} class={props.classNames?.tr}>
                 {props.columnConfig.map((col) => {
                   const cellValue = (row as Record<string, unknown>)[
                     String(col.id)
                   ];
                   return (
-                    <td key={String(col.id)}>
+                    <td
+                      key={String(col.id)}
+                      class={cx(props.classNames?.td, col.cellClass)}
+                    >
                       {col.render$
                         ? col.render$(cellValue, row)
                         : (cellValue as

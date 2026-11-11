@@ -1,0 +1,41 @@
+.demo-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+.demo-th {
+  background-color: #f3f4f6;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #d1d5db;
+  user-select: none;
+}
+
+.demo-th[data-sortable="true"] {
+  cursor: pointer;
+}
+
+.demo-th[data-sortable="true"]:hover {
+  background-color: #e5e7eb;
+}
+
+.demo-th[data-sort="asc"] {
+  color: #2563eb;
+}
+
+.demo-th[data-sort="desc"] {
+  color: #d97706;
+}
+
+.demo-td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.age-header,
+.age-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
