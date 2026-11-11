@@ -13,7 +13,8 @@ A headless, unstyled data table component built natively for Qwik.
 - **Client-Side Sorting:** Built-in single-column sorting (`asc` → `desc` → `null`).
 - **Custom Cell Renderers (`render$`):** Render custom JSX elements inside cells using serializable QRL functions.
 - **Server-Side Sorting Support (`onSort$` & `manualSort`):** Disable local sorting and handle sort state updates externally.
-- **TypeScript Support:** Infers row data types across column configurations and cell renderers.
+
+* **TypeScript Support:** Infers row data types across column configurations and cell renderers.
 
 ---
 
@@ -34,7 +35,7 @@ yarn add qwik-table-core
 Pass an array of plain objects to `rowData` and define your columns in `columnConfig`.
 
 ```tsx
-import { component,  } from "@builder.io/qwik";
+import { component, $ } from "@builder.io/qwik";
 import { QwikTable } from "qwik-table-core";
 
 interface User {
@@ -43,7 +44,7 @@ interface User {
   age: number;
 }
 
-export default component\$(() => {
+export default component$(() => {
   const users: User[] = [
     { firstName: "Aarav", lastName: "Joshi", age: 28 },
     { firstName: "Ananya", lastName: "Sharma", age: 24 },
@@ -60,7 +61,7 @@ export default component\$(() => {
           id: "age",
           label: "Age",
           sortable: true,
-          render: ((val) => <strong>{String(val)} yrs</strong>),
+          render: (val) => <strong>{String(val)} yrs</strong>,
         },
       ]}
     />
@@ -77,7 +78,7 @@ export default component\$(() => {
 If you define your columns outside of the JSX prop, import `ColumnConfig<T>` to keep TypeScript inference for `id` and `row`:
 
 ```tsx
-import { component,  } from "@builder.io/qwik";
+import { component, $ } from "@builder.io/qwik";
 import { QwikTable, type ColumnConfig } from "qwik-table-core";
 
 interface User {
@@ -86,7 +87,7 @@ interface User {
   role: string;
 }
 
-export default component\$(() => {
+export default component$(() => {
   const columns: ColumnConfig<User>[] = [
     { id: "name", label: "Name", sortable: true },
     { id: "role", label: "Role" },
@@ -113,10 +114,10 @@ export default component\$(() => {
 To handle sorting via an API or server loader instead of sorting `rowData` in memory, set `manualSort={true}` and listen to `onSort$`:
 
 ```tsx
-import { component, , useSignal } from "@builder.io/qwik";
+import { component, $, useSignal } from "@builder.io/qwik";
 import { QwikTable, type SortState } from "qwik-table-core";
 
-export default component\$(() => {
+export default component$(() => {
   const serverData = useSignal([
     { firstName: "Aditya", lastName: "Kulkarni", age: 29 },
   ]);
