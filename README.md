@@ -1,55 +1,179 @@
-# Qwik Library ⚡️
+# QwikTable
 
-- [Qwik Docs](https://qwik.dev/)
-- [Discord](https://qwik.dev/chat)
-- [Qwik on GitHub](https://github.com/QwikDev/qwik)
-- [@QwikDev](https://twitter.com/QwikDev)
-- [Vite](https://vitejs.dev/)
-- [Partytown](https://partytown.qwik.dev/)
-- [Mitosis](https://github.com/BuilderIO/mitosis)
-- [Builder.io](https://www.builder.io/)
+A headless, unstyled data table component built natively for Qwik.
+
+`QwikTable` renders semantic HTML `<table>` markup without bundled CSS, letting you style it with your own stylesheets or utility classes. It supports single-column sorting, custom QRL cell rendering, and server-side sorting hooks while adhering to Qwik's lazy-loading boundaries.
 
 ---
 
-## Project Structure
+## Features
 
-Inside your project, you'll see the following directories and files:
+- **Unstyled Semantic Markup:** Outputs standard `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, and `<td>` elements.
+- **Lazy-Loaded Interactions:** Event handlers and custom cell renderers use Qwik QRLs (`$`), loading only when needed.
+- **Client-Side Sorting:** Built-in single-column sorting (`asc` → `desc` → `null`).
+- **Custom Cell Renderers (`render$`):** Render custom JSX elements inside cells using serializable QRL functions.
+- **Server-Side Sorting Support (`onSort$` & `manualSort`):** Disable local sorting and handle sort state updates externally.
+- **TypeScript Support:** Infers row data types across column configurations and cell renderers.
 
-```
-├── public/
-│   └── ...
-└── src/
-    ├── components/
-    │   └── ...
-    └── index.ts
-```
+---
 
-- `src/components`: Recommended directory for components.
+## Installation
 
-- `index.ts`: The entry point of your component library, make sure all the public components are exported from this file.
-
-## Development
-
-Development mode uses [Vite's development server](https://vitejs.dev/). For Qwik during development, the `dev` command will also server-side render (SSR) the output. The client-side development modules are loaded by the browser.
-
-```
-pnpm dev
+```bash
+npm install <your-package-name>
+# or
+pnpm add <your-package-name>
+# or
+yarn add <your-package-name>
 ```
 
-> Note: during dev mode, Vite will request many JS files, which does not represent a Qwik production build.
+---
 
-## Production
+## Basic Usage
 
-The production build should generate the production build of your component library in (./lib) and the typescript type definitions in (./lib-types).
+Pass an array of plain objects to `rowData` and define your columns in `columnConfig`.
 
+```tsx
+import { component,  } from "@builder.io/qwik";
+import { QwikTable } from "<your-package-name>";
+
+interface User {
+  firstName: string;
+  lastName: string;
+  age: number;
+}
+
+export default component\$(() => {
+  const users: User[] = [
+    { firstName: "Aarav", lastName: "Joshi", age: 28 },
+    { firstName: "Ananya", lastName: "Sharma", age: 24 },
+    { firstName: "Rohan", lastName: "Deshmukh", age: 31 },
+  ];
+
+  return (
+    <QwikTable
+      rowData={users}
+      columnConfig={[
+        { id: "firstName", label: "First Name", sortable: true },
+        { id: "lastName", label: "Last Name", sortable: true },
+        {
+          id: "age",
+          label: "Age",
+          sortable: true,
+          render: ((val) => <strong>{String(val)} yrs</strong>),
+        },
+      ]}
+    />
+  );
+});
 ```
-pnpm build
+
+---
+
+## Advanced Usage
+
+### Extracted Column Definitions
+
+If you define your columns outside of the JSX prop, import `ColumnConfig<T>` to keep TypeScript inference for `id` and `row`:
+
+```tsx
+import { component,  } from "@builder.io/qwik";
+import { QwikTable, type ColumnConfig } from "<your-package-name>";
+
+interface User {
+  id: number;
+  name: string;
+  role: string;
+}
+
+export default component\$(() => {
+  const columns: ColumnConfig<User>[] = [
+    { id: "name", label: "Name", sortable: true },
+    { id: "role", label: "Role" },
+    {
+      id: "actions",
+      label: "Actions",
+      render: ((_val, row) => (
+        <button onClick\$={() => alert(`Editing ${row.name}`)}>Edit</button>
+      )),
+    },
+  ];
+
+  const users: User[] = [
+    { id: 1, name: "Priya Patil", role: "Admin" },
+    { id: 2, name: "Kabir Mehta", role: "Developer" },
+  ];
+
+  return <QwikTable rowData={users} columnConfig={columns} />;
+});
 ```
 
-## sideEffects: false
+### Server-Side Sorting
 
-This package is configured with "sideEffects": false in its package.json.<br/>
-This tells bundlers that the module [has no side effects](https://webpack.js.org/guides/tree-shaking/#mark-the-file-as-side-effect-free) when imported.<br/>
-Consequently, to maintain the integrity of tree-shaking optimizations, please ensure your code truly contains no side effects (such as modifying global variables or the DOM upon import).<br/>
-If your module does introduce side effects, remove "sideEffects": false or specify the specific files with side effects.<br/>
-Be sure to only remove it from the specific file where the global is being set. Finally, verify that your build continues to function as expected after making any adjustments to the sideEffects setting.
+To handle sorting via an API or server loader instead of sorting `rowData` in memory, set `manualSort={true}` and listen to `onSort$`:
+
+```tsx
+import { component, , useSignal } from "@builder.io/qwik";
+import { QwikTable, type SortState } from "<your-package-name>";
+
+export default component\$(() => {
+  const serverData = useSignal([
+    { firstName: "Aditya", lastName: "Kulkarni", age: 29 },
+  ]);
+
+  const handleServerSort = ((sortState: SortState) => {
+    console.log("Fetch sorted data:", sortState.columnId, sortState.direction);
+  });
+
+  return (
+    <QwikTable
+      rowData={serverData.value}
+      columnConfig={[
+        { id: "firstName", label: "First Name", sortable: true },
+        { id: "age", label: "Age", sortable: true },
+      ]}
+      manualSort={true}
+      onSort=handleServerSort}
+    />
+  );
+});
+```
+
+---
+
+## API Reference
+
+### `<QwikTable />` Props
+
+| Prop           | Type                              | Default      | Description                                                        |
+| :------------- | :-------------------------------- | :----------- | :----------------------------------------------------------------- |
+| `rowData`      | `T[]`                             | **Required** | Array of plain objects representing table rows.                    |
+| `columnConfig` | `ColumnConfig<T>[]`               | **Required** | Configuration array defining columns, headers, and cell templates. |
+| `onSort$`      | `QRL<(state: SortState) => void>` | `undefined`  | Optional callback fired whenever a sortable header is clicked.     |
+| `manualSort`   | `boolean`                         | `false`      | Disables internal client-side sorting when `true`.                 |
+
+### `ColumnConfig<T>` Properties
+
+| Property   | Type                                       | Default      | Description                                                                  |
+| :--------- | :----------------------------------------- | :----------- | :--------------------------------------------------------------------------- |
+| `id`       | `keyof T \| string`                        | **Required** | Property key on the row object, or a unique string for virtual columns.      |
+| `label`    | `string`                                   | **Required** | Text rendered inside the `<th>` header cell.                                 |
+| `sortable` | `boolean`                                  | `false`      | Enables click-to-sort cycling on the column header.                          |
+| `render$`  | `QRL<(val: unknown, row: T) => JSXOutput>` | `undefined`  | Custom QRL function to render JSX inside the cell. Must be wrapped in `$()`. |
+
+### `SortState`
+
+| Property    | Type                      | Description                                                     |
+| :---------- | :------------------------ | :-------------------------------------------------------------- |
+| `columnId`  | `string \| null`          | The `id` of the currently sorted column, or `null` if unsorted. |
+| `direction` | `"asc" \| "desc" \| null` | Current sort direction, or `null` if unsorted.                  |
+
+---
+
+## Notes on Qwik Serialization
+
+Any function passed to `render$` or `onSort$` must be wrapped in `$()` so Qwik can serialize and lazy-load it across component boundaries.
+
+## License
+
+MIT
