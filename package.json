@@ -1,7 +1,26 @@
 {
   "name": "qwik-table-core",
-  "version": "0.0.1",
-  "description": "Create a Qwik library",
+  "version": "0.1.0",
+  "description": "A headless, unstyled data table component built natively for Qwik.",
+  "keywords": [
+    "qwik",
+    "table",
+    "data-table",
+    "headless",
+    "grid",
+    "sorting",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Omkar Hankare",
+  "homepage": "https://github.com/omkar-h/qwik-table#qwiktable",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omkar-h/qwik-table/issues.git"
+  },
+  "bugs": {
+    "url": "https://github.com/omkar-h/qwik-table/issues"
+  },
   "main": "./lib/index.qwik.mjs",
   "qwik": "./lib/index.qwik.mjs",
   "types": "./lib-types/index.d.ts",
@@ -22,11 +41,15 @@
   "private": false,
   "sideEffects": false,
   "type": "module",
+  "peerDependencies": {
+    "@builder.io/qwik": "^1.0.0"
+  },
   "scripts": {
     "cz": "cz",
     "build": "qwik build",
     "build.lib": "vite build --mode lib",
     "build.types": "tsc --emitDeclarationOnly",
+    "prepublishOnly": "pnpm run build.lib && pnpm run build.types",
     "dev": "vite --mode ssr",
     "dev.debug": "node --inspect-brk ./node_modules/vite/bin/vite.js --mode ssr --force",
     "fmt": "prettier --write .",
