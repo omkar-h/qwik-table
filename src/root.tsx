@@ -1,6 +1,17 @@
-import { QwikTable } from "./components/qwikTable/qwikTable";
+import { component$, $, useSignal } from "@builder.io/qwik";
+import {
+  QwikTable,
+  type ColumnConfig,
+  type SortState,
+} from "./components/qwikTable/qwikTable";
 
-const mockUsers = [
+interface User {
+  firstName: string;
+  lastName: string;
+  age: number;
+}
+
+const mockUsers: User[] = [
   { firstName: "Aarav", lastName: "Joshi", age: 28 },
   { firstName: "Ananya", lastName: "Sharma", age: 24 },
   { firstName: "Rohan", lastName: "Deshmukh", age: 31 },
@@ -18,23 +29,64 @@ const mockUsers = [
   { firstName: "Yash", lastName: "Gawde", age: 23 },
 ];
 
-export default () => {
+export default component$(() => {
+  const lastSortEvent = useSignal<string>("None yet");
+
+  const columns: ColumnConfig<User>[] = [
+    { id: "firstName", label: "First Name", sortable: true },
+    { id: "lastName", label: "Last Name", sortable: true },
+    {
+      id: "age",
+      label: "Age",
+      sortable: true,
+      render$: $((val) => {
+        const age = Number(val);
+        return (
+          <span
+            style={{
+              fontWeight: "bold",
+              color: age >= 30 ? "#d97706" : "#16a34a",
+            }}
+          >
+            {age} yrs
+          </span>
+        );
+      }),
+    },
+    {
+      id: "actions",
+      label: "Actions",
+      render$: $((_val, row) => (
+        <button
+          onClick$={() => alert(`Selected ${row.firstName} ${row.lastName}`)}
+        >
+          Greet
+        </button>
+      )),
+    },
+  ];
+
+  const handleTableSort$ = $((state: SortState) => {
+    lastSortEvent.value = `Column: ${state.columnId ?? "reset"} | Direction: ${state.direction ?? "none"}`;
+  });
+
   return (
     <>
       <head>
         <meta charset="utf-8" />
-        <title>Qwik Blank App</title>
+        <title>QwikTable Sandbox</title>
       </head>
-      <body>
+      <body style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+        <p style={{ background: "#f3f4f6", padding: "0.75rem" }}>
+          <strong>Last onSort$ Event:</strong> {lastSortEvent.value}
+        </p>
+
         <QwikTable
-          columnConfig={[
-            { id: "firstName", label: "First Name", sortable: true },
-            { id: "lastName", label: "Last Name", sortable: true },
-            { id: "age", label: "age", sortable: true },
-          ]}
+          columnConfig={columns}
           rowData={mockUsers}
+          onSort$={handleTableSort$}
         />
       </body>
     </>
   );
-};
+});
