@@ -20,11 +20,11 @@ A headless, unstyled data table component built natively for Qwik.
 ## Installation
 
 ```bash
-npm install <your-package-name>
+npm install qwik-table-core
 # or
-pnpm add <your-package-name>
+pnpm add qwik-table-core
 # or
-yarn add <your-package-name>
+yarn add qwik-table-core
 ```
 
 ---
@@ -35,7 +35,7 @@ Pass an array of plain objects to `rowData` and define your columns in `columnCo
 
 ```tsx
 import { component,  } from "@builder.io/qwik";
-import { QwikTable } from "<your-package-name>";
+import { QwikTable } from "qwik-table-core";
 
 interface User {
   firstName: string;
@@ -78,7 +78,7 @@ If you define your columns outside of the JSX prop, import `ColumnConfig<T>` to 
 
 ```tsx
 import { component,  } from "@builder.io/qwik";
-import { QwikTable, type ColumnConfig } from "<your-package-name>";
+import { QwikTable, type ColumnConfig } from "qwik-table-core";
 
 interface User {
   id: number;
@@ -114,7 +114,7 @@ To handle sorting via an API or server loader instead of sorting `rowData` in me
 
 ```tsx
 import { component, , useSignal } from "@builder.io/qwik";
-import { QwikTable, type SortState } from "<your-package-name>";
+import { QwikTable, type SortState } from "qwik-table-core";
 
 export default component\$(() => {
   const serverData = useSignal([
