@@ -1,31 +1,32 @@
-import {
-  component$,
-  useStore,
-  useComputed$,
-  $,
-  type QRL,
-  type JSXOutput,
-} from "@builder.io/qwik";
+import { component$, useStore, useComputed$, $ } from "@builder.io/qwik";
+import type { SortState, QwikTableProps } from "./types";
 
-export interface SortState {
-  columnId: string | null;
-  direction: "asc" | "desc" | null;
-}
-
-export interface ColumnConfig<T extends object = Record<string, unknown>> {
-  id: Extract<keyof T, string | number> | string;
-  label: string;
-  sortable?: boolean;
-  render$?: QRL<(value: unknown, row: T) => JSXOutput>;
-}
-
-export interface QwikTableProps<T extends object = Record<string, unknown>> {
-  rowData: T[];
-  columnConfig: ColumnConfig<T>[];
-  onSort$?: QRL<(sortState: SortState) => void>;
-  manualSort?: boolean;
-}
-
+/**
+ * A headless, zero-hydration data table component built natively for Qwik.
+ *
+ * Renders semantic HTML `<table>` markup without opinionated styles, supporting
+ * lazy-loaded single-column sorting, custom QRL cell renderers, and server-side
+ * manual sorting hooks.
+ *
+ * @template T - The data interface representing a single row object.
+ *
+ * @example
+ * // 1. Inline column configuration (automatic type inference)
+ * <QwikTable
+ *   rowData={users}
+ *   columnConfig={[
+ *     { id: "firstName", label: "First Name", sortable: true },
+ *     { id: "age", label: "Age", render$: $((val) => <b>{String(val)}</b>) },
+ *   ]}
+ * />
+ *
+ * @example
+ * // 2. Extracted column configuration (explicit generic typing)
+ * const columns: ColumnConfig<User>[] = [
+ *   { id: "firstName", label: "First Name", sortable: true },
+ * ];
+ * <QwikTable rowData={users} columnConfig={columns} />
+ */
 export const QwikTable = component$(
   <T extends object = Record<string, unknown>>(props: QwikTableProps<T>) => {
     const sortState = useStore<SortState>({
@@ -38,7 +39,6 @@ export const QwikTable = component$(
         sortState.columnId = columnId;
         sortState.direction = "asc";
       } else if (sortState.direction === "asc") {
-        // clicked on same colID
         sortState.direction = "desc";
       } else if (sortState.direction === "desc") {
         sortState.columnId = null;

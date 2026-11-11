@@ -1,9 +1,6 @@
 import { component$, $, useSignal } from "@builder.io/qwik";
-import {
-  QwikTable,
-  type ColumnConfig,
-  type SortState,
-} from "./components/qwikTable/qwikTable";
+import { QwikTable } from "./components/qwikTable/qwikTable";
+import { ColumnConfig, SortState } from "./components/qwikTable/types";
 
 interface User {
   firstName: string;
