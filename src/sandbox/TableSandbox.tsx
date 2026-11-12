@@ -1,43 +1,53 @@
-import { component$, $, useSignal } from "@builder.io/qwik";
+import { $, component$, useSignal, useStore } from "@builder.io/qwik";
 import {
   QwikTable,
-  SortDirection,
   type ColumnConfig,
+  type SortDirection,
   type SortState,
 } from "../index";
 import { MOCK_USERS } from "./contants";
+import { GreetButton } from "./GreetButton";
 import type { User } from "./types";
-import { GreetButton } from "./GreetBtn";
+
+const FirstNameHeader = component$<{
+  column: ColumnConfig<User>;
+  sortDirection: SortDirection;
+}>((props) => (
+  <span>
+    {props.column.label}{" "}
+    {props.sortDirection === "asc"
+      ? "↑"
+      : props.sortDirection === "desc"
+        ? "↓"
+        : "↕"}
+  </span>
+));
+
+const AgeCell = component$<{ value: unknown }>((props) => (
+  <span>{String(props.value)} yrs</span>
+));
+
+// Editable cell reading and writing directly to the reactive `props.row` proxy!
+const NoteCell = component$<{ row: User }>((props) => (
+  <input
+    type="text"
+    placeholder="Add note..."
+    value={props.row.note ?? ""}
+    onInput$={(_event, el) => {
+      props.row.note = el.value;
+    }}
+  />
+));
+
+const ActionCell = component$<{ row: User }>((props) => (
+  <GreetButton user={props.row} />
+));
 
 export const TableSandbox = component$(() => {
+  const users = useStore<User[]>(structuredClone(MOCK_USERS));
   const searchQuery = useSignal("");
   const lastSortEvent = useSignal("None yet");
 
-  const FirstNameHeader = component$<{
-    column: ColumnConfig<User>;
-    sortDirection: SortDirection;
-  }>((props) => (
-    <span>
-      {props.column.label}{" "}
-      {props.sortDirection === "asc"
-        ? "↑"
-        : props.sortDirection === "desc"
-          ? "↓"
-          : "↕"}
-    </span>
-  ));
-
-  const AgeCell = component$<{ value: unknown }>((props) => (
-    <span>{String(props.value)} yrs</span>
-  ));
-
-  const ActionCell = component$<{ row: User }>((props) => (
-    <GreetButton name={props.row.firstName} />
-  ));
-
-  const NoResults = component$(() => <em>No matching users found.</em>);
-
-  // Inside columns:
   const columns: ColumnConfig<User>[] = [
     {
       id: "firstName",
@@ -53,6 +63,11 @@ export const TableSandbox = component$(() => {
       headerClass: "age-header",
       cellClass: "age-cell",
       cellComponent: AgeCell,
+    },
+    {
+      id: "note",
+      label: "Notes (Persistent)",
+      cellComponent: NoteCell,
     },
     {
       id: "actions",
@@ -79,17 +94,15 @@ export const TableSandbox = component$(() => {
       />
 
       <QwikTable
-        rowData={MOCK_USERS}
+        rowData={users}
         columnConfig={columns}
         rowKey={["lastName", "firstName"]}
         searchQuery={searchQuery}
         onSort$={handleSort$}
-        emptyComponent={NoResults}
         classNames={{
           table: "demo-table",
           th: "demo-th",
           td: "demo-td",
-          emptyCell: "demo-empty-cell",
         }}
       />
     </div>

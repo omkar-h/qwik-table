@@ -53,6 +53,7 @@ export const QwikTable = component$(
     });
 
     // Memoized two-stage reactive pipeline: Filter -> Sort
+
     const processedRows = useComputed$(() => {
       const currentRows = isSignal(rawRowData) ? rawRowData.value : rawRowData;
       const currentQuery = (
