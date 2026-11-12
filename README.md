@@ -1,20 +1,17 @@
-# QwikTable
+# qwik-table-core
 
-A headless, unstyled data table component built natively for Qwik.
+A **headless, zero-hydration data table component** built natively for [Qwik](https://qwik.dev).
 
-`QwikTable` renders semantic HTML `<table>` markup without bundled CSS, letting you style it with your own stylesheets or utility classes. It supports single-column sorting, custom QRL cell rendering, and server-side sorting hooks while adhering to Qwik's lazy-loading boundaries.
-
----
+`qwik-table-core` leverages Qwik's resumable architecture, `Signal` forwarding, and lazy-loaded QRLs (`$`) so your tables render cleanly on the server and execute zero client-side JavaScript until the user interacts with them.
 
 ## Features
 
-- **Unstyled Semantic Markup:** Outputs standard `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, and `<td>` elements.
-- **Lazy-Loaded Interactions:** Event handlers and custom cell renderers use Qwik QRLs (`$`), loading only when needed.
-- **Client-Side Sorting:** Built-in single-column sorting (`asc` → `desc` → `null`).
-- **Custom Cell Renderers (`render$`):** Render custom JSX elements inside cells using serializable QRL functions.
-- **Server-Side Sorting Support (`onSort$` & `manualSort`):** Disable local sorting and handle sort state updates externally.
-
-* **TypeScript Support:** Infers row data types across column configurations and cell renderers.
+- **Zero Hydration Overhead:** Ships pure HTML `<table>` markup with zero hardcoded styles, wrappers, or icons.
+- **Fine-Grained `Signal` Search:** Pass a reactive `Signal<string>` to `searchQuery` to filter rows across columns without re-rendering parent components.
+- **Lazy-Loaded Sorting:** Click-to-sort cycling (`asc` → `desc` → `null`) downloads sorting logic on first interaction, with `manualSort` support for server-side sorting.
+- **Composite Row Keys (`rowKey`):** Preserves component state and input focus across sort operations via stable composite DOM keys.
+- **Custom Qwik Component Slots:** Render custom `component$` definitions for headers (`headerComponent`), cells (`cellComponent`), and empty states (`emptyComponent`).
+- **Tailwind & CSS Ready:** Full slot-based `classNames`, per-column `headerClass` / `cellClass` overrides, and `data-sort` / `data-sortable` attributes.
 
 ---
 
@@ -30,114 +27,145 @@ yarn add qwik-table-core
 
 ---
 
-## Basic Usage
-
-Pass an array of plain objects to `rowData` and define your columns in `columnConfig`.
+## Quick Start
 
 ```tsx
-import { component, $ } from "@builder.io/qwik";
-import { QwikTable } from "qwik-table-core";
+import { component$, useSignal } from "@builder.io/qwik";
+import {
+  QwikTable,
+  type ColumnConfig,
+  type SortDirection,
+} from "qwik-table-core";
 
 interface User {
+  id: string;
   firstName: string;
   lastName: string;
   age: number;
 }
 
+const AgeCell = component$<{ value: unknown }>((props) => (
+  <span class="font-semibold text-emerald-600">{String(props.value)} yrs</span>
+));
+
+const FirstNameHeader = component$<{
+  column: ColumnConfig<User>;
+  sortDirection: SortDirection;
+}>((props) => (
+  <span>
+    {props.column.label}{" "}
+    {props.sortDirection === "asc"
+      ? "↑"
+      : props.sortDirection === "desc"
+        ? "↓"
+        : "↕"}
+  </span>
+));
+
 export default component$(() => {
+  const searchQuery = useSignal("");
+
   const users: User[] = [
-    { firstName: "Aarav", lastName: "Joshi", age: 28 },
-    { firstName: "Ananya", lastName: "Sharma", age: 24 },
-    { firstName: "Rohan", lastName: "Deshmukh", age: 31 },
+    { id: "1", firstName: "Aarav", lastName: "Joshi", age: 28 },
+    { id: "2", firstName: "Ananya", lastName: "Sharma", age: 24 },
+    { id: "3", firstName: "Rohan", lastName: "Deshmukh", age: 31 },
+  ];
+
+  const columns: ColumnConfig<User>[] = [
+    {
+      id: "firstName",
+      label: "First Name",
+      sortable: true,
+      headerComponent: FirstNameHeader,
+    },
+    { id: "lastName", label: "Last Name", sortable: true },
+    {
+      id: "age",
+      label: "Age",
+      sortable: true,
+      headerClass: "text-right",
+      cellClass: "text-right",
+      cellComponent: AgeCell,
+    },
   ];
 
   return (
-    <QwikTable
-      rowData={users}
-      columnConfig={[
-        { id: "firstName", label: "First Name", sortable: true },
-        { id: "lastName", label: "Last Name", sortable: true },
-        {
-          id: "age",
-          label: "Age",
-          sortable: true,
-          render: (val) => <strong>{String(val)} yrs</strong>,
-        },
-      ]}
-    />
+    <div>
+      <input
+        type="text"
+        placeholder="Search users..."
+        bind:value={searchQuery}
+        class="mb-4 rounded border px-3 py-2"
+      />
+
+      <QwikTable
+        rowData={users}
+        columnConfig={columns}
+        rowKey={["id"]}
+        searchQuery={searchQuery}
+        classNames={{
+          container: "overflow-x-auto rounded-lg border border-gray-200",
+          table: "w-full text-left text-sm",
+          thead: "bg-gray-100 uppercase text-gray-700",
+          th: "px-4 py-3 font-semibold",
+          tr: "border-b hover:bg-gray-50",
+          td: "px-4 py-3",
+          emptyCell: "py-8 text-center text-gray-500",
+        }}
+      />
+    </div>
   );
 });
 ```
 
 ---
 
-## Advanced Usage
+## Preserving Editable Cell State Across Filters
 
-### Extracted Column Definitions
-
-If you define your columns outside of the JSX prop, import `ColumnConfig<T>` to keep TypeScript inference for `id` and `row`:
+When rows are filtered out by `searchQuery`, non-matching `<tr>` elements are unmounted from the DOM. To persist user inputs or counters inside custom cells across filter changes, store edits in a Qwik `useStore` keyed by your unique row key:
 
 ```tsx
-import { component, $ } from "@builder.io/qwik";
-import { QwikTable, type ColumnConfig } from "qwik-table-core";
+import { component$, useStore } from "@builder.io/qwik";
 
 interface User {
-  id: number;
-  name: string;
-  role: string;
+  id: string;
+  firstName: string;
 }
 
 export default component$(() => {
-  const columns: ColumnConfig<User>[] = [
-    { id: "name", label: "Name", sortable: true },
-    { id: "role", label: "Role" },
-    {
-      id: "actions",
-      label: "Actions",
-      render: ((_val, row) => (
-        <button onClick\$={() => alert(`Editing ${row.name}`)}>Edit</button>
-      )),
-    },
-  ];
+  const rowEdits = useStore<Record<string, { note?: string }>>({});
 
-  const users: User[] = [
-    { id: 1, name: "Priya Patil", role: "Admin" },
-    { id: 2, name: "Kabir Mehta", role: "Developer" },
-  ];
+  const NoteCell = component$<{ row: User }>((props) => (
+    <input
+      type="text"
+      value={rowEdits[props.row.id]?.note ?? ""}
+      onInput$={(_e, el) => {
+        rowEdits[props.row.id] = { note: el.value };
+      }}
+    />
+  ));
 
-  return <QwikTable rowData={users} columnConfig={columns} />;
+  // Pass NoteCell inside your columnConfig's cellComponent property
 });
 ```
 
-### Server-Side Sorting
+---
 
-To handle sorting via an API or server loader instead of sorting `rowData` in memory, set `manualSort={true}` and listen to `onSort$`:
+## Server-Side Sorting (`manualSort` + `onSort$`)
 
 ```tsx
-import { component, $, useSignal } from "@builder.io/qwik";
-import { QwikTable, type SortState } from "qwik-table-core";
+import { $ } from "@builder.io/qwik";
+import { QwikTable } from "qwik-table-core";
 
-export default component$(() => {
-  const serverData = useSignal([
-    { firstName: "Aditya", lastName: "Kulkarni", age: 29 },
-  ]);
-
-  const handleServerSort = ((sortState: SortState) => {
-    console.log("Fetch sorted data:", sortState.columnId, sortState.direction);
-  });
-
-  return (
-    <QwikTable
-      rowData={serverData.value}
-      columnConfig={[
-        { id: "firstName", label: "First Name", sortable: true },
-        { id: "age", label: "Age", sortable: true },
-      ]}
-      manualSort={true}
-      onSort=handleServerSort}
-    />
-  );
-});
+<QwikTable
+  rowData={serverRows}
+  columnConfig={columns}
+  rowKey={["id"]}
+  manualSort={true}
+  onSort=((sortState) => {
+    console.log("Fetch sorted page:", sortState.columnId, sortState.direction);
+  })}
+/>
 ```
 
 ---
@@ -146,35 +174,31 @@ export default component$(() => {
 
 ### `<QwikTable />` Props
 
-| Prop           | Type                              | Default      | Description                                                        |
-| :------------- | :-------------------------------- | :----------- | :----------------------------------------------------------------- |
-| `rowData`      | `T[]`                             | **Required** | Array of plain objects representing table rows.                    |
-| `columnConfig` | `ColumnConfig<T>[]`               | **Required** | Configuration array defining columns, headers, and cell templates. |
-| `onSort$`      | `QRL<(state: SortState) => void>` | `undefined`  | Optional callback fired whenever a sortable header is clicked.     |
-| `manualSort`   | `boolean`                         | `false`      | Disables internal client-side sorting when `true`.                 |
+| Prop             | Type                              | Required | Default | Description                                                                                                              |
+| :--------------- | :-------------------------------- | :------: | :-----: | :----------------------------------------------------------------------------------------------------------------------- |
+| `rowData`        | `T[] \| Signal<T[]>`              |   Yes    |    —    | Array of row objects (or a reactive `Signal`) to display.                                                                |
+| `columnConfig`   | `ColumnConfig<T>[]`               |   Yes    |    —    | Array of column configuration objects.                                                                                   |
+| `rowKey`         | `(keyof T)[]`                     |   Yes    |    —    | Property keys used to build a unique composite DOM key for each `<tr>`.                                                  |
+| `searchQuery`    | `string \| Signal<string>`        |    No    |  `""`   | Case-insensitive search filter matched across configured columns.                                                        |
+| `emptyComponent` | `Component<{}>`                   |    No    |    —    | Custom Qwik `component$` rendered when zero records match.                                                               |
+| `onSort$`        | `QRL<(state: SortState) => void>` |    No    |    —    | QRL callback triggered whenever a sortable header is clicked.                                                            |
+| `manualSort`     | `boolean`                         |    No    | `false` | Disables internal client-side sorting when sorting on a backend.                                                         |
+| `classNames`     | `TableClassNames`                 |    No    |    —    | Slot-based CSS classes (`container`, `table`, `thead`, `headerRow`, `th`, `tbody`, `tr`, `td`, `emptyRow`, `emptyCell`). |
 
-### `ColumnConfig<T>` Properties
+### `ColumnConfig<T>`
 
-| Property   | Type                                       | Default      | Description                                                                  |
-| :--------- | :----------------------------------------- | :----------- | :--------------------------------------------------------------------------- |
-| `id`       | `keyof T \| string`                        | **Required** | Property key on the row object, or a unique string for virtual columns.      |
-| `label`    | `string`                                   | **Required** | Text rendered inside the `<th>` header cell.                                 |
-| `sortable` | `boolean`                                  | `false`      | Enables click-to-sort cycling on the column header.                          |
-| `render$`  | `QRL<(val: unknown, row: T) => JSXOutput>` | `undefined`  | Custom QRL function to render JSX inside the cell. Must be wrapped in `$()`. |
-
-### `SortState`
-
-| Property    | Type                      | Description                                                     |
-| :---------- | :------------------------ | :-------------------------------------------------------------- |
-| `columnId`  | `string \| null`          | The `id` of the currently sorted column, or `null` if unsorted. |
-| `direction` | `"asc" \| "desc" \| null` | Current sort direction, or `null` if unsorted.                  |
+| Property          | Type                                   | Required | Description                                                            |
+| :---------------- | :------------------------------------- | :------: | :--------------------------------------------------------------------- |
+| `id`              | `keyof T \| string`                    |   Yes    | Key matching a property on `T` or a custom ID for virtual columns.     |
+| `label`           | `string`                               |   Yes    | Display text rendered inside `<th>` when `headerComponent` is omitted. |
+| `sortable`        | `boolean`                              |    No    | Enables click-to-sort cycling (`asc` → `desc` → `null`).               |
+| `headerClass`     | `string`                               |    No    | Extra CSS class appended to this column's `<th>`.                      |
+| `cellClass`       | `string`                               |    No    | Extra CSS class appended to this column's `<td>`.                      |
+| `headerComponent` | `Component<{ column, sortDirection }>` |    No    | Custom Qwik `component$` rendered inside `<th>`.                       |
+| `cellComponent`   | `Component<{ value, row }>`            |    No    | Custom Qwik `component$` rendered inside `<td>`.                       |
 
 ---
 
-## Notes on Qwik Serialization
-
-Any function passed to `render$` or `onSort$` must be wrapped in `$()` so Qwik can serialize and lazy-load it across component boundaries.
-
 ## License
 
-MIT
+MIT © Omkar Hankare
