@@ -2,7 +2,7 @@ export { QwikTable } from "./components/qwikTable/qwikTable";
 export type {
   ColumnConfig,
   QwikTableProps,
-  SortState,
   SortDirection,
+  SortState,
   TableClassNames,
 } from "./components/qwikTable/types";

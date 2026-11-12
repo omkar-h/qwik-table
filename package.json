@@ -1,6 +1,6 @@
 {
   "name": "qwik-table-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A headless, unstyled data table component built natively for Qwik.",
   "keywords": [
     "qwik",
