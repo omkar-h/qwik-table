@@ -39,3 +39,10 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+.demo-empty-cell {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #6b7280;
+  background-color: #f9fafb;
+}

@@ -1,19 +1,71 @@
-import { User } from "./types";
+import type { User } from "./types";
 
-export const MOCK_USERS: User[] = [
-  { firstName: "Aarav", lastName: "Joshi", age: 28 },
-  { firstName: "Ananya", lastName: "Sharma", age: 24 },
-  { firstName: "Rohan", lastName: "Deshmukh", age: 31 },
-  { firstName: "Priya", lastName: "Patil", age: 27 },
-  { firstName: "Kabir", lastName: "Mehta", age: 35 },
-  { firstName: "Sanya", lastName: "Verma", age: 22 },
-  { firstName: "Aditya", lastName: "Kulkarni", age: 29 },
-  { firstName: "Diya", lastName: "Nair", age: 26 },
-  { firstName: "Rahul", lastName: "Singh", age: 33 },
-  { firstName: "Isha", lastName: "Gupta", age: 30 },
-  { firstName: "Vikram", lastName: "Shinde", age: 42 },
-  { firstName: "Meera", lastName: "Rao", age: 25 },
-  { firstName: "Arjun", lastName: "Chavan", age: 28 },
-  { firstName: "Neha", lastName: "Mishra", age: 31 },
-  { firstName: "Yash", lastName: "Gawde", age: 23 },
+const FIRST_NAMES = [
+  "Aarav",
+  "Ananya",
+  "Rohan",
+  "Priya",
+  "Kabir",
+  "Sanya",
+  "Aditya",
+  "Diya",
+  "Rahul",
+  "Isha",
+  "Vikram",
+  "Meera",
+  "Arjun",
+  "Neha",
+  "Yash",
+  "Kavya",
+  "Siddharth",
+  "Pooja",
+  "Manish",
+  "Sneha",
 ];
+
+const LAST_NAMES = [
+  "Joshi",
+  "Sharma",
+  "Deshmukh",
+  "Patil",
+  "Mehta",
+  "Verma",
+  "Kulkarni",
+  "Nair",
+  "Singh",
+  "Gupta",
+  "Shinde",
+  "Rao",
+  "Chavan",
+  "Mishra",
+  "Gawde",
+  "Sawant",
+  "More",
+  "Kadam",
+  "Jadhav",
+  "Bhosale",
+];
+
+/**
+ * Generates a deterministic array of mock users for stress-testing sorting and filtering.
+ * Default count (2,500) represents the comfortable sweet spot for non-virtualized DOM tables.
+ */
+export function generateMockUsers(count = 2500): User[] {
+  return Array.from({ length: count }, (_, index) => {
+    const first = FIRST_NAMES[index % FIRST_NAMES.length];
+    const last =
+      LAST_NAMES[Math.floor(index / FIRST_NAMES.length) % LAST_NAMES.length];
+    // Append index suffix so composite rowKey stays 100% unique across thousands of rows
+    const suffix =
+      Math.floor(index / (FIRST_NAMES.length * LAST_NAMES.length)) + 1;
+
+    return {
+      firstName: suffix > 1 ? `${first} ${suffix}` : first,
+      lastName: last,
+      age: 20 + (index % 45), // Ages 20 to 64
+    };
+  });
+}
+
+// Comfortable sweet spot for unvirtualized DOM rendering (2,500 rows)
+export const MOCK_USERS: User[] = generateMockUsers(2500);

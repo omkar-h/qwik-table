@@ -1,4 +1,4 @@
-import type { QRL, JSXOutput } from "@builder.io/qwik";
+import type { QRL, Component, Signal } from "@builder.io/qwik";
 
 /** Allowed sorting directions for a column. */
 export type SortDirection = "asc" | "desc" | null;
@@ -33,6 +33,10 @@ export interface TableClassNames {
   tr?: string;
   /** Default class applied to every `<td>` data cell. */
   td?: string;
+  /** Class applied to the empty-state `<tr>` row when no records match. */
+  emptyRow?: string;
+  /** Class applied to the empty-state `<td colSpan={...}>` cell. */
+  emptyCell?: string;
 }
 
 /**
@@ -69,18 +73,20 @@ export interface ColumnConfig<T extends object = Record<string, unknown>> {
   cellClass?: string;
 
   /**
-   * Optional QRL function for rendering custom JSX inside this column's `<th>` header.
-   * Receives the column config and its current {@link SortDirection}.
+   * Optional Qwik `component$` rendered inside this column's `<th>` header.
    */
-  headerRender$?: QRL<
-    (column: ColumnConfig<T>, sortDirection: SortDirection) => JSXOutput
-  >;
+  headerComponent?: Component<{
+    column: ColumnConfig<T>;
+    sortDirection: SortDirection;
+  }>;
 
   /**
-   * Optional QRL function for rendering custom JSX inside this column's `<td>` cells.
-   * Must be wrapped in `$()` to preserve Qwik's serialization boundary.
+   * Optional Qwik `component$` rendered inside this column's `<td>` cells.
    */
-  render$?: QRL<(value: unknown, row: T) => JSXOutput>;
+  cellComponent?: Component<{
+    value: unknown;
+    row: T;
+  }>;
 }
 
 /**
@@ -88,23 +94,29 @@ export interface ColumnConfig<T extends object = Record<string, unknown>> {
  *
  * @template T - The data interface representing a single row object.
  */
-/**
- * Props accepted by the `<QwikTable />` component.
- *
- * @template T - The data interface representing a single row object.
- */
 export interface QwikTableProps<T extends object = Record<string, unknown>> {
-  /** Array of plain data objects to render as table rows. */
-  rowData: T[];
+  /** Array of plain data objects (or a reactive `Signal<T[]>`) to render as table rows. */
+  rowData: T[] | Signal<T[]>;
 
   /** Array of column definitions controlling headers, sorting, and cell rendering. */
   columnConfig: ColumnConfig<T>[];
 
   /**
-   * Property key on each row object used as a unique DOM key for `<tr>`.
+   * Required property keys on each row object used to build a unique composite DOM key for `<tr>`.
    * Preserves stateful components inside cells when rows are sorted or filtered.
    */
   rowKey: Extract<keyof T, string | number>[];
+
+  /**
+   * Optional search string (or a reactive `Signal<string>`) used to filter rows case-insensitively.
+   */
+  searchQuery?: string | Signal<string>;
+
+  /**
+   * Optional Qwik `component$` rendered when `rowData` is empty
+   * or when `searchQuery` yields zero matching rows.
+   */
+  emptyComponent?: Component<object>;
 
   /**
    * Optional QRL callback invoked whenever a sortable column header is clicked.
