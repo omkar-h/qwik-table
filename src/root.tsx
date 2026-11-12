@@ -54,6 +54,7 @@ export default component$(() => {
         <QwikTable
           rowData={MOCK_USERS}
           columnConfig={columns}
+          rowKey={["age", "firstName"]}
           onSort$={handleSort$}
           classNames={{
             table: "demo-table",

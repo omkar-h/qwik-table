@@ -88,12 +88,23 @@ export interface ColumnConfig<T extends object = Record<string, unknown>> {
  *
  * @template T - The data interface representing a single row object.
  */
+/**
+ * Props accepted by the `<QwikTable />` component.
+ *
+ * @template T - The data interface representing a single row object.
+ */
 export interface QwikTableProps<T extends object = Record<string, unknown>> {
   /** Array of plain data objects to render as table rows. */
   rowData: T[];
 
   /** Array of column definitions controlling headers, sorting, and cell rendering. */
   columnConfig: ColumnConfig<T>[];
+
+  /**
+   * Property key on each row object used as a unique DOM key for `<tr>`.
+   * Preserves stateful components inside cells when rows are sorted or filtered.
+   */
+  rowKey: Extract<keyof T, string | number>[];
 
   /**
    * Optional QRL callback invoked whenever a sortable column header is clicked.

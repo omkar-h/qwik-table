@@ -93,30 +93,40 @@ export const QwikTable = component$(
             </tr>
           </thead>
           <tbody class={props.classNames?.tbody}>
-            {sortedRows.value.map((row, rowIndex) => (
-              <tr key={rowIndex} class={props.classNames?.tr}>
-                {props.columnConfig.map((col) => {
-                  const cellValue = (row as Record<string, unknown>)[
-                    String(col.id)
-                  ];
-                  return (
-                    <td
-                      key={String(col.id)}
-                      class={cx(props.classNames?.td, col.cellClass)}
-                    >
-                      {col.render$
-                        ? col.render$(cellValue, row)
-                        : (cellValue as
-                            | string
-                            | number
-                            | boolean
-                            | null
-                            | undefined)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {sortedRows.value.map((row, rowIndex) => {
+              const rowKey =
+                props.rowKey && props.rowKey.length > 0
+                  ? props.rowKey
+                      .map((key) =>
+                        String((row as Record<string, unknown>)[String(key)]),
+                      )
+                      .join("-")
+                  : rowIndex;
+              return (
+                <tr key={rowKey} class={props.classNames?.tr}>
+                  {props.columnConfig.map((col) => {
+                    const cellValue = (row as Record<string, unknown>)[
+                      String(col.id)
+                    ];
+                    return (
+                      <td
+                        key={String(col.id)}
+                        class={cx(props.classNames?.td, col.cellClass)}
+                      >
+                        {col.render$
+                          ? col.render$(cellValue, row)
+                          : (cellValue as
+                              | string
+                              | number
+                              | boolean
+                              | null
+                              | undefined)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
