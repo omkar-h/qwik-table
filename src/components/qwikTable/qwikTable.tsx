@@ -77,6 +77,19 @@ export const QwikTable = component$(
       }
     });
 
+    const handlePageSizeChange = $((nextSize: number) => {
+      const safeSize = Math.max(1, Math.floor(nextSize));
+      if (rawPageSize) {
+        rawPageSize.value = safeSize;
+      }
+      if (rawCurrentPage) {
+        rawCurrentPage.value = 1;
+      }
+      if (onPageChange$) {
+        onPageChange$(1);
+      }
+    });
+
     // Memoized three-stage reactive pipeline: Filter -> Sort -> Paginate
     const tableState = useComputed$(() => {
       const currentRows = isSignal(rawRowData) ? rawRowData.value : rawRowData;
@@ -268,6 +281,8 @@ export const QwikTable = component$(
           <PaginationComp
             {...tableState.value.pagination}
             onPageChange$={handlePageChange}
+            onPageSizeChange$={handlePageSizeChange}
+            meta={tableMeta}
           />
         )}
       </>

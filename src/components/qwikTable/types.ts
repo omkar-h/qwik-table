@@ -198,6 +198,8 @@ export interface QwikTableProps<
   paginationComponent?: Component<
     PaginationState & {
       onPageChange$: QRL<(page: number) => void>;
+      onPageSizeChange$: QRL<(size: number) => void>;
+      meta?: TMeta;
     }
   >;
 
