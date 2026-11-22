@@ -56,6 +56,8 @@ export const QwikTable = component$(
 
     const processedRows = useComputed$(() => {
       const currentRows = isSignal(rawRowData) ? rawRowData.value : rawRowData;
+      // Subscribe to useStore array mutations (.splice, .push, .pop) in O(1) time without copying
+      // void currentRows.length; ----> might be required later on
       const currentQuery = (
         isSignal(rawSearchQuery) ? rawSearchQuery.value : (rawSearchQuery ?? "")
       )

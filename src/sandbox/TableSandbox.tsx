@@ -1,4 +1,13 @@
-import { $, component$, useSignal, useStore } from "@builder.io/qwik";
+import {
+  $,
+  component$,
+  createContextId,
+  QRL,
+  useContext,
+  useContextProvider,
+  useSignal,
+  useStore,
+} from "@builder.io/qwik";
 import {
   QwikTable,
   type ColumnConfig,
@@ -43,6 +52,25 @@ const ActionCell = component$<{ row: User }>((props) => (
   <GreetButton user={props.row} />
 ));
 
+export const DeleteUserContext =
+  createContextId<QRL<(user: User) => void>>("sandbox.deleteUser");
+
+// 2. DeleteCell captures ONLY `props.row` (1 object) + `onDelete$` (1 QRL string)
+const DeleteCell = component$<{ row: User }>((props) => {
+  const onDelete$ = useContext(DeleteUserContext);
+
+  return (
+    <button
+      type="button"
+      onClick$={() => {
+        onDelete$(props.row);
+      }}
+    >
+      Delete {props.row.firstName} {props.row.lastName}
+    </button>
+  );
+});
+
 export const TableSandbox = component$(() => {
   const users = useStore<User[]>(structuredClone(MOCK_USERS));
   const searchQuery = useSignal("");
@@ -74,11 +102,29 @@ export const TableSandbox = component$(() => {
       label: "Actions",
       cellComponent: ActionCell,
     },
+    {
+      id: "delete",
+      label: "Delete",
+      cellComponent: DeleteCell,
+    },
   ];
 
   const handleSort$ = $((state: SortState) => {
     lastSortEvent.value = `${state.columnId ?? "reset"} (${state.direction ?? "none"})`;
   });
+
+  const handleDelete$ = $((targetUser: User) => {
+    const index = users.findIndex(
+      (u) =>
+        u.firstName === targetUser.firstName &&
+        u.lastName === targetUser.lastName,
+    );
+    if (index !== -1) {
+      users.splice(index, 1);
+    }
+  });
+
+  useContextProvider(DeleteUserContext, handleDelete$);
 
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
@@ -103,6 +149,7 @@ export const TableSandbox = component$(() => {
           table: "demo-table",
           th: "demo-th",
           td: "demo-td",
+          container: "demo-container",
         }}
       />
     </div>

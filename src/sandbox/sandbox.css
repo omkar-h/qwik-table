@@ -1,7 +1,13 @@
+.demo-container {
+  height: 20rem;
+  overflow-y: scroll;
+  border: 2px solid black;
+  margin-top: 1rem;
+}
+
 .demo-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
   font-size: 0.95rem;
 }
 
