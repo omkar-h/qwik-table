@@ -1,13 +1,4 @@
-import {
-  $,
-  component$,
-  createContextId,
-  QRL,
-  useContext,
-  useContextProvider,
-  useSignal,
-  useStore,
-} from "@builder.io/qwik";
+import { $, component$, useSignal, useStore, type QRL } from "@builder.io/qwik";
 import {
   QwikTable,
   type ColumnConfig,
@@ -17,9 +8,15 @@ import {
 import { MOCK_USERS } from "./contants";
 import { GreetButton } from "./GreetButton";
 import type { User } from "./types";
+import { TablePagination } from "./Pagination";
+
+/** Typed meta object forwarded to all custom header/cell components */
+interface SandboxMeta {
+  onDelete$: QRL<(user: User) => void>;
+}
 
 const FirstNameHeader = component$<{
-  column: ColumnConfig<User>;
+  column: ColumnConfig<User, SandboxMeta>;
   sortDirection: SortDirection;
 }>((props) => (
   <span>
@@ -52,18 +49,13 @@ const ActionCell = component$<{ row: User }>((props) => (
   <GreetButton user={props.row} />
 ));
 
-export const DeleteUserContext =
-  createContextId<QRL<(user: User) => void>>("sandbox.deleteUser");
-
-// 2. DeleteCell captures ONLY `props.row` (1 object) + `onDelete$` (1 QRL string)
-const DeleteCell = component$<{ row: User }>((props) => {
-  const onDelete$ = useContext(DeleteUserContext);
-
+// Receives `props.meta` directly with full TypeScript IntelliSense
+const DeleteCell = component$<{ row: User; meta?: SandboxMeta }>((props) => {
   return (
     <button
       type="button"
       onClick$={() => {
-        onDelete$(props.row);
+        props.meta?.onDelete$(props.row);
       }}
     >
       Delete {props.row.firstName} {props.row.lastName}
@@ -75,8 +67,10 @@ export const TableSandbox = component$(() => {
   const users = useStore<User[]>(structuredClone(MOCK_USERS));
   const searchQuery = useSignal("");
   const lastSortEvent = useSignal("None yet");
+  const currentPage = useSignal(1);
+  const pageSize = useSignal(100);
 
-  const columns: ColumnConfig<User>[] = [
+  const columns: ColumnConfig<User, SandboxMeta>[] = [
     {
       id: "firstName",
       label: "First Name",
@@ -124,8 +118,6 @@ export const TableSandbox = component$(() => {
     }
   });
 
-  useContextProvider(DeleteUserContext, handleDelete$);
-
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <p>
@@ -139,18 +131,22 @@ export const TableSandbox = component$(() => {
         style={{ padding: "8px 12px", marginBottom: "12px", width: "260px" }}
       />
 
-      <QwikTable
+      <QwikTable<User, SandboxMeta>
         rowData={users}
         columnConfig={columns}
         rowKey={["lastName", "firstName"]}
         searchQuery={searchQuery}
         onSort$={handleSort$}
+        meta={{ onDelete$: handleDelete$ }}
         classNames={{
           table: "demo-table",
           th: "demo-th",
           td: "demo-td",
           container: "demo-container",
         }}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        paginationComponent={TablePagination}
       />
     </div>
   );
