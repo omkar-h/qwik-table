@@ -14,6 +14,20 @@ export interface SortState {
 }
 
 /**
+ * Represents the computed pagination metadata passed to `paginationComponent`.
+ */
+export interface PaginationState {
+  /** Current 1-indexed active page number. */
+  currentPage: number;
+  /** Number of rows displayed per page. */
+  pageSize: number;
+  /** Total number of matching rows (or server-reported total when `manualPagination` is `true`). */
+  totalRows: number;
+  /** Total number of available pages (`>= 1`). */
+  totalPages: number;
+}
+
+/**
  * Optional CSS class names applied to individual HTML elements of the table.
  */
 export interface TableClassNames {
@@ -43,8 +57,12 @@ export interface TableClassNames {
  * Configuration object defining a single column in `QwikTable`.
  *
  * @template T - The data interface representing a single row object.
+ * @template TMeta - Optional custom metadata or action handlers forwarded to cell/header components.
  */
-export interface ColumnConfig<T extends object = Record<string, unknown>> {
+export interface ColumnConfig<
+  T extends object = Record<string, unknown>,
+  TMeta = Record<string, unknown>,
+> {
   /**
    * Key matching a property on the row data object, or a unique string identifier
    * for virtual columns (such as an `"actions"` column).
@@ -76,8 +94,9 @@ export interface ColumnConfig<T extends object = Record<string, unknown>> {
    * Optional Qwik `component$` rendered inside this column's `<th>` header.
    */
   headerComponent?: Component<{
-    column: ColumnConfig<T>;
+    column: ColumnConfig<T, TMeta>;
     sortDirection: SortDirection;
+    meta?: TMeta;
   }>;
 
   /**
@@ -86,6 +105,7 @@ export interface ColumnConfig<T extends object = Record<string, unknown>> {
   cellComponent?: Component<{
     value: unknown;
     row: T;
+    meta?: TMeta;
   }>;
 }
 
@@ -93,13 +113,17 @@ export interface ColumnConfig<T extends object = Record<string, unknown>> {
  * Props accepted by the `<QwikTable />` component.
  *
  * @template T - The data interface representing a single row object.
+ * @template TMeta - Optional custom metadata or action handlers forwarded to cell/header components.
  */
-export interface QwikTableProps<T extends object = Record<string, unknown>> {
+export interface QwikTableProps<
+  T extends object = Record<string, unknown>,
+  TMeta = Record<string, unknown>,
+> {
   /** Array of plain data objects (or a reactive `Signal<T[]>`) to render as table rows. */
   rowData: T[] | Signal<T[]>;
 
   /** Array of column definitions controlling headers, sorting, and cell rendering. */
-  columnConfig: ColumnConfig<T>[];
+  columnConfig: ColumnConfig<T, TMeta>[];
 
   /**
    * Required property keys on each row object used to build a unique composite DOM key for `<tr>`.
@@ -111,6 +135,12 @@ export interface QwikTableProps<T extends object = Record<string, unknown>> {
    * Optional search string (or a reactive `Signal<string>`) used to filter rows case-insensitively.
    */
   searchQuery?: string | Signal<string>;
+
+  /**
+   * Optional custom metadata or QRL action handlers (such as `onDelete$`) forwarded
+   * directly to every `cellComponent` and `headerComponent`.
+   */
+  meta?: TMeta;
 
   /**
    * Optional Qwik `component$` rendered when `rowData` is empty
@@ -130,6 +160,46 @@ export interface QwikTableProps<T extends object = Record<string, unknown>> {
    * @default false
    */
   manualSort?: boolean;
+
+  /**
+   * Optional number of rows per page (or a reactive `Signal<number>`).
+   * When omitted or `<= 0`, pagination is disabled and all matching rows render.
+   */
+  pageSize?: Signal<number>;
+
+  /**
+   * Optional 1-indexed active page number (or a reactive `Signal<number>`).
+   * @default 1
+   */
+  currentPage?: Signal<number>;
+
+  /**
+   * When `true`, disables internal client-side array slicing.
+   * Use this alongside `totalRows` and `onPageChange$` for server-side pagination.
+   * @default false
+   */
+  manualPagination?: boolean;
+
+  /**
+   * Total record count on the backend when `manualPagination` is `true`.
+   */
+  totalRows?: number | Signal<number>;
+
+  /**
+   * Optional QRL callback invoked when the page changes via `paginationComponent`
+   * or when page bounds clamp automatically.
+   */
+  onPageChange$?: QRL<(page: number) => void>;
+
+  /**
+   * Optional headless Qwik `component$` rendered below `</table>` inside the container
+   * whenever `pageSize` is configured.
+   */
+  paginationComponent?: Component<
+    PaginationState & {
+      onPageChange$: QRL<(page: number) => void>;
+    }
+  >;
 
   /** Optional slot-based CSS classes for styling table elements. */
   classNames?: TableClassNames;
