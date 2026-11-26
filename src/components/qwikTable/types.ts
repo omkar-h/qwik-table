@@ -3,6 +3,9 @@ import type { QRL, Component, Signal } from "@builder.io/qwik";
 /** Allowed sorting directions for a column. */
 export type SortDirection = "asc" | "desc" | null;
 
+/** Allowed row selection modes. */
+export type SelectionMode = "multiple" | "single";
+
 /**
  * Represents the current sorting state of the table.
  */
@@ -45,6 +48,8 @@ export interface TableClassNames {
   tbody?: string;
   /** Class applied to every body `<tr>` row. */
   tr?: string;
+  /** Optional class appended to a body `<tr>` row when selected via `rowSelection`. */
+  selectedTr?: string;
   /** Default class applied to every `<td>` data cell. */
   td?: string;
   /** Class applied to the empty-state `<tr>` row when no records match. */
@@ -65,7 +70,7 @@ export interface ColumnConfig<
 > {
   /**
    * Key matching a property on the row data object, or a unique string identifier
-   * for virtual columns (such as an `"actions"` column).
+   * for virtual columns (such as an `"actions"` or `"select"` column).
    */
   id: Extract<keyof T, string | number> | string;
 
@@ -77,6 +82,12 @@ export interface ColumnConfig<
    * @default false
    */
   sortable?: boolean;
+
+  /**
+   * Whether `searchQuery` checks this column's values when filtering rows.
+   * Defaults to `true` for plain text columns and `false` for columns with a custom `cellComponent`.
+   */
+  searchable?: boolean;
 
   /**
    * Optional CSS class applied specifically to this column's `<th>` header cell.
@@ -96,6 +107,11 @@ export interface ColumnConfig<
   headerComponent?: Component<{
     column: ColumnConfig<T, TMeta>;
     sortDirection: SortDirection;
+    isAllPageSelected: boolean;
+    isSomePageSelected: boolean;
+    toggleVisibleRows$: QRL<() => void>;
+    isAllRowsSelected: boolean;
+    toggleAllRows$: QRL<() => void>;
     meta?: TMeta;
   }>;
 
@@ -105,14 +121,11 @@ export interface ColumnConfig<
   cellComponent?: Component<{
     row: T;
     column: ColumnConfig<T, TMeta>;
+    rowId: string;
+    isSelected: boolean;
+    toggleRow$: QRL<(rowId: string) => void>;
     meta?: TMeta;
   }>;
-
-  /**
-   * Whether `searchQuery` checks this column's values when filtering rows.
-   * Defaults to `true` for plain text columns and `false` for columns with a custom `cellComponent`.
-   */
-  searchable?: boolean;
 }
 
 /**
@@ -144,9 +157,27 @@ export interface QwikTableProps<
 
   /**
    * Optional custom metadata or QRL action handlers (such as `onDelete$`) forwarded
-   * directly to every `cellComponent` and `headerComponent`.
+   * directly to every `cellComponent`, `headerComponent`, and `paginationComponent`.
    */
   meta?: TMeta;
+
+  /**
+   * Optional reactive `Signal<Record<string, boolean>>` keyed by each row's
+   * composite `rowKey` string (`rowId`). Enables O(1) atomic batch selection.
+   */
+  rowSelection?: Signal<Record<string, boolean>>;
+
+  /**
+   * Controls whether multiple rows or at most one row can be selected at a time.
+   * @default "multiple"
+   */
+  selectionMode?: SelectionMode;
+
+  /**
+   * Optional QRL callback invoked whenever row selection changes.
+   * Receives an array of currently selected composite `rowId` keys.
+   */
+  onRowSelectionChange$?: QRL<(selectedRowIds: string[]) => void>;
 
   /**
    * Optional Qwik `component$` rendered when `rowData` is empty
@@ -168,13 +199,13 @@ export interface QwikTableProps<
   manualSort?: boolean;
 
   /**
-   * Optional number of rows per page (or a reactive `Signal<number>`).
+   * Optional reactive `Signal<number>` controlling how many rows render per page.
    * When omitted or `<= 0`, pagination is disabled and all matching rows render.
    */
   pageSize?: Signal<number>;
 
   /**
-   * Optional 1-indexed active page number (or a reactive `Signal<number>`).
+   * Optional 1-indexed reactive `Signal<number>` tracking the active page.
    * @default 1
    */
   currentPage?: Signal<number>;
@@ -192,8 +223,7 @@ export interface QwikTableProps<
   totalRows?: number | Signal<number>;
 
   /**
-   * Optional QRL callback invoked when the page changes via `paginationComponent`
-   * or when page bounds clamp automatically.
+   * Optional QRL callback invoked when the page changes via `paginationComponent`.
    */
   onPageChange$?: QRL<(page: number) => void>;
 
