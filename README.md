@@ -1,3 +1,5 @@
+[![npm version](https://shields.io)](https://npmjs.com)
+[![npm downloads](https://shields.io)](https://npmjs.com)
 # qwik-table-core
 
 A **headless, zero-hydration data table component** built natively for [Qwik](https://qwik.dev).
