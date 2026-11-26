@@ -52,3 +52,12 @@
   color: #6b7280;
   background-color: #f9fafb;
 }
+
+.demo-tr {
+  /* content-visibility: auto; */
+  /* contain-intrinsic-size: auto 40px; */
+}
+
+.selected-row {
+  background-color: #eff6ff;
+}
