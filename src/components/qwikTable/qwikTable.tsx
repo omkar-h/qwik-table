@@ -41,7 +41,9 @@ export const QwikTable = component$(
     const rawCurrentPage = props.currentPage;
     const rawTotalRows = props.totalRows;
     const manualPagination = Boolean(props.manualPagination);
-    const searchableColIds = props.columnConfig.map((col) => String(col.id));
+    const searchableColIds = props.columnConfig
+      .filter((col) => col.searchable ?? !col.cellComponent)
+      .map((col) => String(col.id));
     const onSort$ = props.onSort$;
     const onPageChange$ = props.onPageChange$;
     const EmptyComp = props.emptyComponent;
@@ -243,24 +245,22 @@ export const QwikTable = component$(
                   return (
                     <tr key={rowKey} class={props.classNames?.tr}>
                       {props.columnConfig.map((col) => {
-                        const cellValue = (row as Record<string, unknown>)[
-                          String(col.id)
-                        ];
+                        const colKey = String(col.id);
                         const CellComp = col.cellComponent;
 
                         return (
                           <td
-                            key={String(col.id)}
+                            key={colKey}
                             class={cx(props.classNames?.td, col.cellClass)}
                           >
                             {CellComp ? (
                               <CellComp
-                                value={cellValue}
                                 row={row}
+                                column={col}
                                 meta={tableMeta}
                               />
                             ) : (
-                              (cellValue as
+                              ((row as Record<string, unknown>)[colKey] as
                                 | string
                                 | number
                                 | boolean

@@ -103,10 +103,16 @@ export interface ColumnConfig<
    * Optional Qwik `component$` rendered inside this column's `<td>` cells.
    */
   cellComponent?: Component<{
-    value: unknown;
     row: T;
+    column: ColumnConfig<T, TMeta>;
     meta?: TMeta;
   }>;
+
+  /**
+   * Whether `searchQuery` checks this column's values when filtering rows.
+   * Defaults to `true` for plain text columns and `false` for columns with a custom `cellComponent`.
+   */
+  searchable?: boolean;
 }
 
 /**
