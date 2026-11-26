@@ -29,8 +29,8 @@ const FirstNameHeader = component$<{
   </span>
 ));
 
-const AgeCell = component$<{ value: unknown }>((props) => (
-  <span>{String(props.value)} yrs</span>
+const AgeCell = component$<{ row: User }>((props) => (
+  <span>{String(props.row.age)} yrs</span>
 ));
 
 // Editable cell reading and writing directly to the reactive `props.row` proxy!
