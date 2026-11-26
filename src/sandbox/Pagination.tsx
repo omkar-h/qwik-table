@@ -6,7 +6,7 @@ export interface TablePaginationProps extends PaginationState {
   onPageSizeChange$: QRL<(size: number) => void>;
 }
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500];
 
 /** Builds a compact page sequence like [1, "...", 4, 5, 6, "...", 100] */
 const buildPageRange = (
