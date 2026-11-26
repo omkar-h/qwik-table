@@ -1,17 +1,18 @@
 import {
-  component$,
-  useStore,
-  useComputed$,
-  isSignal,
   $,
+  component$,
+  isSignal,
+  useComputed$,
+  useStore,
 } from "@builder.io/qwik";
-import type {
-  SortState,
-  SortDirection,
-  QwikTableProps,
-  PaginationState,
-} from "./types";
 import { cx, getRowKey, toAriaSort } from "./helper";
+import { computeTablePipeline } from "./pipeline";
+import {
+  computeSelectionFlags,
+  toggleBatchRowSelection,
+  toggleSingleRowSelection,
+} from "./selection";
+import type { QwikTableProps, SortDirection, SortState } from "./types";
 
 /**
  * A headless, unstyled data table component built natively for Qwik.
@@ -27,10 +28,7 @@ export const QwikTable = component$(
   <T extends object = Record<string, unknown>, TMeta = Record<string, unknown>>(
     props: QwikTableProps<T, TMeta>,
   ) => {
-    const sortState = useStore<SortState>({
-      columnId: null,
-      direction: null,
-    });
+    const sortState = useStore<SortState>({ columnId: null, direction: null });
 
     // Extract serializable values & Signals outside `$` boundaries so `useComputed$`
     // and event handlers never capture `props` (which holds non-serializable components/meta).
@@ -44,6 +42,10 @@ export const QwikTable = component$(
     const searchableColIds = props.columnConfig
       .filter((col) => col.searchable ?? !col.cellComponent)
       .map((col) => String(col.id));
+    const rowKeyFields = props.rowKey;
+    const rowSelection = props.rowSelection;
+    const selectionMode = props.selectionMode ?? "multiple";
+    const onRowSelectionChange$ = props.onRowSelectionChange$;
     const onSort$ = props.onSort$;
     const onPageChange$ = props.onPageChange$;
     const EmptyComp = props.emptyComponent;
@@ -56,126 +58,87 @@ export const QwikTable = component$(
         sortState.direction = "asc";
       } else if (sortState.direction === "asc") {
         sortState.direction = "desc";
-      } else if (sortState.direction === "desc") {
+      } else {
         sortState.columnId = null;
         sortState.direction = null;
       }
-
-      if (onSort$) {
-        onSort$({
-          columnId: sortState.columnId,
-          direction: sortState.direction,
-        });
-      }
+      onSort$?.({
+        columnId: sortState.columnId,
+        direction: sortState.direction,
+      });
     });
 
     const handlePageChange = $((nextPage: number) => {
       const safePage = Math.max(1, Math.floor(nextPage));
-      if (rawCurrentPage) {
-        rawCurrentPage.value = safePage;
-      }
-      if (onPageChange$) {
-        onPageChange$(safePage);
-      }
+      if (rawCurrentPage) rawCurrentPage.value = safePage;
+      onPageChange$?.(safePage);
     });
 
     const handlePageSizeChange = $((nextSize: number) => {
       const safeSize = Math.max(1, Math.floor(nextSize));
-      if (rawPageSize) {
-        rawPageSize.value = safeSize;
-      }
-      if (rawCurrentPage) {
-        rawCurrentPage.value = 1;
-      }
-      if (onPageChange$) {
-        onPageChange$(1);
-      }
+      if (rawPageSize) rawPageSize.value = safeSize;
+      if (rawCurrentPage) rawCurrentPage.value = 1;
+      onPageChange$?.(1);
     });
 
-    // Memoized three-stage reactive pipeline: Filter -> Sort -> Paginate
     const tableState = useComputed$(() => {
       const currentRows = isSignal(rawRowData) ? rawRowData.value : rawRowData;
       // Subscribe to useStore array mutations (.splice, .push, .pop) in O(1) time
       void currentRows.length;
 
-      const currentQuery = (
-        isSignal(rawSearchQuery) ? rawSearchQuery.value : (rawSearchQuery ?? "")
-      )
-        ?.trim()
-        ?.toLowerCase();
-
-      // 1. Filter
-      const filtered = currentQuery
-        ? currentRows?.filter((row) =>
-            searchableColIds?.some((colId) => {
-              const rawVal = (row as Record<string, unknown>)[colId];
-              if (rawVal == null) return false;
-              return String(rawVal)?.toLowerCase()?.includes(currentQuery);
-            }),
-          )
-        : currentRows;
-
-      // 2. Sort
-      const sorted = (() => {
-        if (manualSort) return filtered;
-
-        const { columnId, direction } = sortState;
-        if (!columnId || !direction) return filtered;
-
-        return [...filtered].sort((a, b) => {
-          const valueA = (a as Record<string, unknown>)[columnId];
-          const valueB = (b as Record<string, unknown>)[columnId];
-
-          if (valueA == null) return 1;
-          if (valueB == null) return -1;
-
-          if (valueA < valueB) return direction === "asc" ? -1 : 1;
-          if (valueA > valueB) return direction === "asc" ? 1 : -1;
-          return 0;
-        });
-      })();
-
-      // 3. Paginate
-      const resolvedPageSize = rawPageSize ? rawPageSize.value : 0;
-
-      const resolvedTotalRows = manualPagination
-        ? isSignal(rawTotalRows)
-          ? rawTotalRows.value
-          : (rawTotalRows ?? sorted.length)
-        : sorted.length;
-
-      if (!resolvedPageSize || resolvedPageSize <= 0) {
-        return {
-          rows: sorted,
-          pagination: null as PaginationState | null,
-        };
-      }
-
-      const totalPages = Math.max(
-        1,
-        Math.ceil(resolvedTotalRows / resolvedPageSize),
-      );
-
-      const requestedPage = rawCurrentPage ? rawCurrentPage.value : 1;
-      const clampedPage = Math.min(Math.max(1, requestedPage), totalPages);
-
-      const visibleRows = manualPagination
-        ? sorted
-        : sorted.slice(
-            (clampedPage - 1) * resolvedPageSize,
-            clampedPage * resolvedPageSize,
-          );
-
-      return {
-        rows: visibleRows,
-        pagination: {
-          currentPage: clampedPage,
-          pageSize: resolvedPageSize,
-          totalRows: resolvedTotalRows,
-          totalPages,
-        } satisfies PaginationState,
-      };
+      return computeTablePipeline({
+        rows: currentRows,
+        query: isSignal(rawSearchQuery)
+          ? rawSearchQuery.value
+          : (rawSearchQuery ?? ""),
+        searchableColIds,
+        sortState,
+        manualSort,
+        pageSize: rawPageSize ? rawPageSize.value : 0,
+        currentPage: rawCurrentPage ? rawCurrentPage.value : 1,
+        manualPagination,
+        totalRows: isSignal(rawTotalRows) ? rawTotalRows.value : rawTotalRows,
+      });
     });
+
+    const handleToggleRow = $((targetRowId: string) => {
+      if (!rowSelection) return;
+      const ids = toggleSingleRowSelection(
+        rowSelection,
+        targetRowId,
+        selectionMode,
+      );
+      onRowSelectionChange$?.(ids);
+    });
+
+    const toggleVisibleRows$ = $(() => {
+      if (!rowSelection || selectionMode === "single") return;
+      const ids = toggleBatchRowSelection(
+        rowSelection,
+        tableState.value.visibleRows,
+        rowKeyFields,
+      );
+      onRowSelectionChange$?.(ids);
+    });
+
+    const toggleAllRows$ = $(() => {
+      if (!rowSelection || selectionMode === "single") return;
+      const ids = toggleBatchRowSelection(
+        rowSelection,
+        tableState.value.allRows,
+        rowKeyFields,
+      );
+      onRowSelectionChange$?.(ids);
+    });
+
+    const selectionMap = rowSelection?.value;
+    const pageRows = tableState.value.visibleRows;
+    const selectionFlags = computeSelectionFlags(
+      selectionMap,
+      pageRows,
+      tableState.value.allRows,
+      rowKeyFields,
+    );
 
     return (
       <>
@@ -185,10 +148,10 @@ export const QwikTable = component$(
               <tr class={props.classNames?.headerRow}>
                 {props.columnConfig.map((col) => {
                   const targetId = String(col.id);
-                  const isCurrentSort = sortState.columnId === targetId;
-                  const currentDirection: SortDirection = isCurrentSort
-                    ? sortState.direction
-                    : null;
+                  const currentDirection: SortDirection =
+                    sortState.columnId === targetId
+                      ? sortState.direction
+                      : null;
 
                   const clickAction$ = col.sortable
                     ? $(() => handleSort(targetId))
@@ -219,6 +182,9 @@ export const QwikTable = component$(
                         <HeaderComp
                           column={col}
                           sortDirection={currentDirection}
+                          {...selectionFlags}
+                          toggleVisibleRows$={toggleVisibleRows$}
+                          toggleAllRows$={toggleAllRows$}
                           meta={tableMeta}
                         />
                       ) : (
@@ -230,7 +196,7 @@ export const QwikTable = component$(
               </tr>
             </thead>
             <tbody class={props.classNames?.tbody}>
-              {tableState.value.rows.length === 0 ? (
+              {pageRows.length === 0 ? (
                 <tr class={props.classNames?.emptyRow}>
                   <td
                     colSpan={props.columnConfig.length}
@@ -240,10 +206,19 @@ export const QwikTable = component$(
                   </td>
                 </tr>
               ) : (
-                tableState.value.rows.map((row, rowIndex) => {
-                  const rowKey = getRowKey(row, rowIndex, props.rowKey);
+                pageRows.map((row, rowIndex) => {
+                  const rowId = getRowKey(row, rowIndex, rowKeyFields);
+                  const isSelected = Boolean(selectionMap?.[rowId]);
+
                   return (
-                    <tr key={rowKey} class={props.classNames?.tr}>
+                    <tr
+                      key={rowId}
+                      data-selected={isSelected ? "true" : undefined}
+                      class={cx(
+                        props.classNames?.tr,
+                        isSelected ? props.classNames?.selectedTr : undefined,
+                      )}
+                    >
                       {props.columnConfig.map((col) => {
                         const colKey = String(col.id);
                         const CellComp = col.cellComponent;
@@ -257,6 +232,9 @@ export const QwikTable = component$(
                               <CellComp
                                 row={row}
                                 column={col}
+                                rowId={rowId}
+                                isSelected={isSelected}
+                                toggleRow$={handleToggleRow}
                                 meta={tableMeta}
                               />
                             ) : (
