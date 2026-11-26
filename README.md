@@ -1,351 +1,435 @@
-[![npm version](https://shields.io)](https://npmjs.com)
-[![npm downloads](https://shields.io)](https://npmjs.com)
 # qwik-table-core
 
-A **headless, zero-hydration data table component** built natively for [Qwik](https://qwik.dev).
+[![npm version](https://img.shields.io/npm/v/qwik-table-core.svg)](https://www.npmjs.com/package/qwik-table-core)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/omkar-h/qwik-table/blob/main/LICENSE)
 
-`qwik-table-core` leverages Qwik's resumable architecture, `Signal` forwarding, and lazy-loaded QRLs (`$`) so your tables render cleanly on the server and execute zero client-side JavaScript until the user interacts with them.
-
-## Features
-
-- **Zero Hydration Overhead:** Ships pure HTML `<table>` markup with zero hardcoded styles, wrappers, or icons.
-- **Headless Pagination:** Reactive `Signal<number>` support for `currentPage` and `pageSize` (`Filter → Sort → Paginate`), automatic page clamping, `manualPagination` for server-side APIs, and a custom `paginationComponent` render slot.
-- **Fine-Grained `Signal` Search:** Pass a reactive `Signal<string>` to `searchQuery` to filter rows across columns without re-rendering parent components.
-- **Accessible Lazy-Loaded Sorting:** Click or keyboard (`Enter` / `Space`) sorting (`asc` → `desc` → `null`) with automatic `aria-sort` attributes and `manualSort` support.
-- **Typed `meta` Action Forwarding:** Pass row-level `QRL` handlers (such as `onDelete$` or `onEdit$`) or shared metadata directly into custom header, cell, and pagination components without Context boilerplate.
-- **Composite Row Keys (`rowKey`):** Preserves component state and input focus across sort, filter, and pagination operations via stable composite DOM keys.
-- **Tailwind & CSS Ready:** Full slot-based `classNames`, per-column `headerClass` / `cellClass` overrides, and `data-sort` / `data-sortable` attributes.
-
----
+`qwik-table-core` is a headless, zero-hydration data table library for Qwik. It provides search, sorting, pagination, row selection, custom renderers, and slot-based styling in an approximately 3.2 kB gzipped package.
 
 ## Installation
 
 ```bash
-npm install qwik-table-core
-# or
 pnpm add qwik-table-core
-# or
-yarn add qwik-table-core
 ```
 
----
+```bash
+npm install qwik-table-core
+```
 
 ## Quick Start
 
 ```tsx
-import { component$, useSignal } from "@builder.io/qwik";
-import {
-  QwikTable,
-  type ColumnConfig,
-  type SortDirection,
-} from "qwik-table-core";
+import { component$ } from "@builder.io/qwik";
+import { QwikTable, type ColumnConfig } from "qwik-table-core";
 
 interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  age: number;
+  id: number;
+  name: string;
+  email: string;
 }
 
-const AgeCell = component$<{ value: unknown }>((props) => (
-  <span class="font-semibold text-emerald-600">{String(props.value)} yrs</span>
-));
-
-const FirstNameHeader = component$<{
-  column: ColumnConfig<User>;
-  sortDirection: SortDirection;
-}>((props) => (
-  <span>
-    {props.column.label}{" "}
-    {props.sortDirection === "asc"
-      ? "↑"
-      : props.sortDirection === "desc"
-        ? "↓"
-        : "↕"}
-  </span>
-));
-
 export default component$(() => {
-  const searchQuery = useSignal("");
-
-  const users: User[] = [
-    { id: "1", firstName: "Aarav", lastName: "Joshi", age: 28 },
-    { id: "2", firstName: "Ananya", lastName: "Sharma", age: 24 },
-    { id: "3", firstName: "Rohan", lastName: "Deshmukh", age: 31 },
+  const rowData: User[] = [
+    { id: 1, name: "Ada Lovelace", email: "ada@example.com" },
+    { id: 2, name: "Grace Hopper", email: "grace@example.com" },
   ];
 
-  const columns: ColumnConfig<User>[] = [
-    {
-      id: "firstName",
-      label: "First Name",
-      sortable: true,
-      headerComponent: FirstNameHeader,
-    },
-    { id: "lastName", label: "Last Name", sortable: true },
-    {
-      id: "age",
-      label: "Age",
-      sortable: true,
-      headerClass: "text-right",
-      cellClass: "text-right",
-      cellComponent: AgeCell,
-    },
+  const columnConfig: ColumnConfig<User>[] = [
+    { id: "name", label: "Name", sortable: true, searchable: true },
+    { id: "email", label: "Email", searchable: true },
   ];
 
   return (
-    <div>
-      <input
-        type="text"
-        placeholder="Search users..."
-        bind:value={searchQuery}
-        class="mb-4 rounded border px-3 py-2"
-      />
-
-      <QwikTable
-        rowData={users}
-        columnConfig={columns}
-        rowKey={["id"]}
-        searchQuery={searchQuery}
-        classNames={{
-          container: "overflow-x-auto rounded-lg border border-gray-200",
-          table: "w-full text-left text-sm",
-          thead: "bg-gray-100 uppercase text-gray-700",
-          th: "px-4 py-3 font-semibold",
-          tr: "border-b hover:bg-gray-50",
-          td: "px-4 py-3",
-          emptyCell: "py-8 text-center text-gray-500",
-        }}
-      />
-    </div>
+    <QwikTable rowData={rowData} columnConfig={columnConfig} rowKey={["id"]} />
   );
 });
 ```
 
----
+## Core Features & Usage Examples
 
-## Headless Pagination
+### Signal-based Search
 
-Pass reactive `Signal<number>` values to `currentPage` and `pageSize`, along with your own `paginationComponent` to render any pagination UI:
+Pass `searchQuery` as a string or a `Signal<string>`. Filtering is case-insensitive and checks columns whose `searchable` flag is enabled. `searchable` defaults to `true` for columns without a `cellComponent` and `false` for columns with a `cellComponent`.
+
+```tsx
+import { component$, useSignal } from "@builder.io/qwik";
+import { QwikTable, type ColumnConfig } from "qwik-table-core";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export default component$(() => {
+  const searchQuery = useSignal("");
+  const rowData: User[] = [
+    { id: 1, name: "Ada Lovelace", email: "ada@example.com" },
+  ];
+  const columnConfig: ColumnConfig<User>[] = [
+    { id: "name", label: "Name", searchable: true },
+    { id: "email", label: "Email", searchable: false },
+  ];
+
+  return (
+    <>
+      <input bind:value={searchQuery} aria-label="Search users" />
+      <QwikTable
+        rowData={rowData}
+        columnConfig={columnConfig}
+        rowKey={["id"]}
+        searchQuery={searchQuery}
+      />
+    </>
+  );
+});
+```
+
+### Client & Server Sorting
+
+Set `sortable: true` on a column for client-side sorting. Header clicks and `Enter`/`Space` key presses cycle through `asc`, `desc`, and `null`. Sortable headers receive `aria-sort` and `data-sortable="true"` attributes.
+
+```tsx
+import { $, component$ } from "@builder.io/qwik";
+import { QwikTable, type ColumnConfig, type SortState } from "qwik-table-core";
+
+const columns: ColumnConfig<{ id: number; name: string }>[] = [
+  { id: "name", label: "Name", sortable: true },
+];
+
+export default component$(() => {
+  const onSort$ = $((sortState: SortState) => {
+    // Fetch sorted server data here.
+  });
+
+  return (
+    <QwikTable
+      rowData={[{ id: 1, name: "Ada Lovelace" }]}
+      columnConfig={columns}
+      rowKey={["id"]}
+      onSort$={onSort$}
+    />
+  );
+});
+```
+
+Set `manualSort` to `true` to disable client sorting and use `onSort$` for server-side sorting:
+
+```tsx
+<QwikTable
+  rowData={serverRows}
+  columnConfig={columns}
+  rowKey={["id"]}
+  manualSort
+  onSort$={onSort$}
+/>
+```
+
+### Client & Server Pagination
+
+Pass `pageSize` and `currentPage` as `Signal<number>` values and provide a `paginationComponent`. When `pageSize` is omitted or `<= 0`, pagination is disabled and all matching rows are rendered.
 
 ```tsx
 import { component$, useSignal, type QRL } from "@builder.io/qwik";
-import { QwikTable, type PaginationState } from "qwik-table-core";
+import {
+  QwikTable,
+  type PaginationState,
+  type ColumnConfig,
+} from "qwik-table-core";
 
-const MyPagination = component$<
+interface Row {
+  id: number;
+  name: string;
+}
+
+const Pagination = component$<
   PaginationState & {
     onPageChange$: QRL<(page: number) => void>;
     onPageSizeChange$: QRL<(size: number) => void>;
   }
 >((props) => (
-  <div class="mt-4 flex items-center justify-between">
-    <select
-      value={props.pageSize}
-      onChange$={(_e, el) => props.onPageSizeChange$(Number(el.value))}
+  <nav>
+    <button
+      disabled={props.currentPage <= 1}
+      onClick$={() => props.onPageChange$(props.currentPage - 1)}
     >
-      {[10, 25, 50, 100].map((size) => (
-        <option key={size} value={size} selected={props.pageSize === size}>
-          {String(size)}
-        </option>
-      ))}
-    </select>
-
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        disabled={props.currentPage <= 1}
-        onClick$={() => props.onPageChange$(props.currentPage - 1)}
-      >
-        Prev
-      </button>
-      <span>
-        Page {props.currentPage} of {props.totalPages} ({props.totalRows} rows)
-      </span>
-      <button
-        type="button"
-        disabled={props.currentPage >= props.totalPages}
-        onClick$={() => props.onPageChange$(props.currentPage + 1)}
-      >
-        Next
-      </button>
-    </div>
-  </div>
+      Previous
+    </button>
+    <span>
+      {props.currentPage} / {props.totalPages}
+    </span>
+    <button
+      disabled={props.currentPage >= props.totalPages}
+      onClick$={() => props.onPageChange$(props.currentPage + 1)}
+    >
+      Next
+    </button>
+  </nav>
 ));
 
 export default component$(() => {
   const currentPage = useSignal(1);
-  const pageSize = useSignal(25);
+  const pageSize = useSignal(10);
+  const rowData: Row[] = [{ id: 1, name: "Ada Lovelace" }];
+  const columnConfig: ColumnConfig<Row>[] = [{ id: "name", label: "Name" }];
 
   return (
     <QwikTable
-      rowData={users}
-      columnConfig={columns}
+      rowData={rowData}
+      columnConfig={columnConfig}
       rowKey={["id"]}
       currentPage={currentPage}
       pageSize={pageSize}
-      paginationComponent={MyPagination}
+      paginationComponent={Pagination}
     />
   );
 });
 ```
 
----
-
-## Typed `meta` Action Forwarding
-
-Use the generic `meta` prop (`QwikTable<T, TMeta>`) to pass `QRL` action handlers or shared configuration directly to custom cells without Context boilerplate or closure serialization overhead:
+For server-side pagination, set `manualPagination` and `totalRows`, then handle page changes with `onPageChange$`. The table does not slice `rowData` in this mode:
 
 ```tsx
-import { $, component$, useStore, type QRL } from "@builder.io/qwik";
+import { $, component$, useSignal } from "@builder.io/qwik";
+import { QwikTable } from "qwik-table-core";
+
+export default component$(() => {
+  const currentPage = useSignal(1);
+  const pageSize = useSignal(10);
+  const onPageChange$ = $((page: number) => {
+    // Fetch the requested server page.
+  });
+
+  return (
+    <QwikTable
+      rowData={serverRows}
+      columnConfig={columns}
+      rowKey={["id"]}
+      manualPagination
+      totalRows={serverTotalRows}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onPageChange$={onPageChange$}
+      paginationComponent={Pagination}
+    />
+  );
+});
+```
+
+### Headless Row Selection
+
+Pass a `Signal<Record<string, boolean>>` to `rowSelection`. Keys are composite `rowKey` values. Use `selectionMode="multiple"` for batch selection or `selectionMode="single"` for at most one selected row. `onRowSelectionChange$` receives the currently selected row IDs.
+
+Selected rows set `data-selected="true"` and receive `classNames.selectedTr` in addition to `classNames.tr`.
+
+```tsx
+import { component$, useSignal, $ } from "@builder.io/qwik";
 import { QwikTable, type ColumnConfig } from "qwik-table-core";
 
 interface User {
-  id: string;
-  firstName: string;
+  id: number;
+  name: string;
+}
+
+const SelectHeader = component$<{
+  isAllPageSelected: boolean;
+  isSomePageSelected: boolean;
+  toggleVisibleRows$: import("@builder.io/qwik").QRL<() => void>;
+}>((props) => (
+  <input
+    type="checkbox"
+    checked={props.isAllPageSelected}
+    aria-checked={props.isSomePageSelected ? "mixed" : props.isAllPageSelected}
+    onChange$={() => props.toggleVisibleRows$()}
+  />
+));
+
+const SelectCell = component$<{
+  rowId: string;
+  isSelected: boolean;
+  toggleRow$: import("@builder.io/qwik").QRL<(rowId: string) => void>;
+}>((props) => (
+  <input
+    type="checkbox"
+    checked={props.isSelected}
+    onChange$={() => props.toggleRow$(props.rowId)}
+  />
+));
+
+export default component$(() => {
+  const rowSelection = useSignal<Record<string, boolean>>({});
+  const onRowSelectionChange$ = $((selectedRowIds: string[]) => {
+    // `selectedRowIds` contains the composite rowKey values.
+  });
+  const columnConfig: ColumnConfig<User>[] = [
+    {
+      id: "select",
+      label: "",
+      headerComponent: SelectHeader,
+      cellComponent: SelectCell,
+      searchable: false,
+    },
+    { id: "name", label: "Name" },
+  ];
+
+  return (
+    <QwikTable
+      rowData={[{ id: 1, name: "Ada Lovelace" }]}
+      columnConfig={columnConfig}
+      rowKey={["id"]}
+      rowSelection={rowSelection}
+      selectionMode="multiple"
+      onRowSelectionChange$={onRowSelectionChange$}
+    />
+  );
+});
+```
+
+Header components also receive `isAllRowsSelected` and `toggleAllRows$`. `toggleVisibleRows$` toggles the current page; `toggleAllRows$` toggles all filtered/sorted rows. In `selectionMode="single"`, both batch toggle handlers are no-ops.
+
+### Custom Header & Cell Components + `meta`
+
+Use `QwikTable<T, TMeta>` for typed custom renderers. `headerComponent` receives `column`, `sortDirection`, selection state, selection toggle QRLs, and `meta`. `cellComponent` receives `row`, `column`, `rowId`, `isSelected`, `toggleRow$`, and `meta`. The same `meta` value is also forwarded to `paginationComponent`.
+
+```tsx
+import { $, component$, type QRL } from "@builder.io/qwik";
+import { QwikTable, type ColumnConfig } from "qwik-table-core";
+
+interface User {
+  id: number;
+  name: string;
 }
 
 interface TableMeta {
-  onDelete$: QRL<(user: User) => void>;
+  onDelete$: QRL<(row: User) => void>;
 }
 
-const DeleteCell = component$<{ row: User; meta?: TableMeta }>((props) => (
-  <button type="button" onClick$={() => props.meta?.onDelete$(props.row)}>
-    Delete {props.row.firstName}
+const NameCell = component$<{
+  row: User;
+  meta?: TableMeta;
+}>((props) => (
+  <button onClick$={() => props.meta?.onDelete$(props.row)}>
+    Delete {props.row.name}
   </button>
 ));
 
 export default component$(() => {
-  const users = useStore<User[]>([
-    { id: "1", firstName: "Aarav" },
-    { id: "2", firstName: "Ananya" },
-  ]);
-
-  const handleDelete$ = $((target: User) => {
-    const idx = users.findIndex((u) => u.id === target.id);
-    if (idx !== -1) users.splice(idx, 1);
+  const rowData: User[] = [{ id: 1, name: "Ada Lovelace" }];
+  const onDelete$ = $((row: User) => {
+    // Delete `row`.
   });
-
-  const columns: ColumnConfig<User, TableMeta>[] = [
-    { id: "firstName", label: "First Name" },
-    { id: "delete", label: "Actions", cellComponent: DeleteCell },
+  const columnConfig: ColumnConfig<User, TableMeta>[] = [
+    {
+      id: "name",
+      label: "Name",
+      cellComponent: NameCell,
+    },
   ];
 
   return (
     <QwikTable<User, TableMeta>
-      rowData={users}
-      columnConfig={columns}
+      rowData={rowData}
+      columnConfig={columnConfig}
       rowKey={["id"]}
-      meta={{ onDelete$: handleDelete$ }}
+      meta={{ onDelete$ }}
     />
   );
 });
 ```
 
----
+### Styling via `classNames`
 
-## Preserving Editable Cell State Across Filters & Pages
-
-When rows are filtered out by `searchQuery` or sliced by pagination, unmounted `<tr>` elements are removed from the DOM. To persist user inputs or counters across filter, sort, and page changes, store your rows in Qwik's `useStore` (or a keyed `useStore` map) and mutate row properties directly:
+`classNames` applies CSS classes to named table slots. `headerClass` and `cellClass` are appended to the corresponding default classes.
 
 ```tsx
-import { component$, useStore } from "@builder.io/qwik";
-
-interface User {
-  id: string;
-  firstName: string;
-  note?: string;
-}
-
-export default component$(() => {
-  const users = useStore<User[]>([{ id: "1", firstName: "Aarav" }]);
-
-  const NoteCell = component$<{ row: User }>((props) => (
-    <input
-      type="text"
-      value={props.row.note ?? ""}
-      onInput$={(_e, el) => {
-        props.row.note = el.value;
-      }}
-    />
-  ));
-
-  // Pass `users` to `rowData` and `NoteCell` inside `columnConfig`
-});
-```
-
----
-
-## Server-Side Sorting & Pagination
-
-```tsx
-import { $ } from "@builder.io/qwik";
-import { QwikTable } from "qwik-table-core";
-
 <QwikTable
-  rowData={serverRows}
-  columnConfig={columns}
+  rowData={rowData}
+  columnConfig={columnConfig}
   rowKey={["id"]}
-  manualSort={true}
-  onSort$={$((sortState) => {
-    console.log("Fetch sorted page:", sortState.columnId, sortState.direction);
-  })}
-  manualPagination={true}
-  totalRows={serverTotalCount}
-  currentPage={currentPage}
-  pageSize={pageSize}
-  onPageChange$={$((page) => {
-    console.log("Fetch page:", page);
-  })}
-  paginationComponent={MyPagination}
-/>;
+  classNames={{
+    container: "table-container",
+    table: "table",
+    thead: "table-head",
+    headerRow: "table-header-row",
+    th: "table-header-cell",
+    tbody: "table-body",
+    tr: "table-row",
+    selectedTr: "table-row-selected",
+    td: "table-cell",
+    emptyRow: "table-empty-row",
+    emptyCell: "table-empty-cell",
+  }}
+/>
 ```
 
----
+## Complete Props & Types Reference
 
-## API Reference
+### `QwikTableProps`
 
-### `<QwikTable<T, TMeta> />` Props
+| Prop                    | Type                                                                                                                                        | Required | Default      | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | :------: | ------------ | ------------------------------------------------------------------------------ |
+| `rowData`               | `T[] \| Signal<T[]>`                                                                                                                        |   Yes    | -            | Row objects to render.                                                         |
+| `columnConfig`          | `ColumnConfig<T, TMeta>[]`                                                                                                                  |   Yes    | -            | Column definitions and renderers.                                              |
+| `rowKey`                | `Extract<keyof T, string \| number>[]`                                                                                                      |   Yes    | -            | Property keys used to build the composite DOM key for each row.                |
+| `searchQuery`           | `string \| Signal<string>`                                                                                                                  |    No    | `""`         | Case-insensitive search value.                                                 |
+| `meta`                  | `TMeta`                                                                                                                                     |    No    | -            | Metadata or QRL handlers forwarded to header, cell, and pagination components. |
+| `rowSelection`          | `Signal<Record<string, boolean>>`                                                                                                           |    No    | -            | Selected state keyed by composite `rowKey` string.                             |
+| `selectionMode`         | `"multiple" \| "single"`                                                                                                                    |    No    | `"multiple"` | Whether multiple or at most one row can be selected.                           |
+| `onRowSelectionChange$` | `QRL<(selectedRowIds: string[]) => void>`                                                                                                   |    No    | -            | Called when selection changes.                                                 |
+| `emptyComponent`        | `Component<object>`                                                                                                                         |    No    | -            | Rendered when there are no matching records.                                   |
+| `onSort$`               | `QRL<(sortState: SortState) => void>`                                                                                                       |    No    | -            | Called when a sortable header is activated.                                    |
+| `manualSort`            | `boolean`                                                                                                                                   |    No    | `false`      | Disables internal sorting.                                                     |
+| `pageSize`              | `Signal<number>`                                                                                                                            |    No    | -            | Rows per page; omitted or `<= 0` disables pagination.                          |
+| `currentPage`           | `Signal<number>`                                                                                                                            |    No    | `1`          | 1-indexed active page.                                                         |
+| `manualPagination`      | `boolean`                                                                                                                                   |    No    | `false`      | Disables internal slicing for server pagination.                               |
+| `totalRows`             | `number \| Signal<number>`                                                                                                                  |    No    | -            | Backend row count used when `manualPagination` is `true`.                      |
+| `onPageChange$`         | `QRL<(page: number) => void>`                                                                                                               |    No    | -            | Called when the pagination component changes the page or page size.            |
+| `paginationComponent`   | `Component<PaginationState & { onPageChange$: QRL<(page: number) => void>; onPageSizeChange$: QRL<(size: number) => void>; meta?: TMeta }>` |    No    | -            | Rendered below the table when pagination is active.                            |
+| `classNames`            | `TableClassNames`                                                                                                                           |    No    | -            | Slot-based CSS classes.                                                        |
 
-| Prop                  | Type                                                                       | Required | Default | Description                                                                                                              |
-| :-------------------- | :------------------------------------------------------------------------- | :------: | :-----: | :----------------------------------------------------------------------------------------------------------------------- |
-| `rowData`             | `T[] \| Signal<T[]>`                                                       |   Yes    |    —    | Array of row objects (or a reactive `Signal<T[]>`) to display.                                                           |
-| `columnConfig`        | `ColumnConfig<T, TMeta>[]`                                                 |   Yes    |    —    | Array of column configuration objects.                                                                                   |
-| `rowKey`              | `(keyof T)[]`                                                              |   Yes    |    —    | Property keys used to build a unique composite DOM key for each `<tr>`.                                                  |
-| `searchQuery`         | `string \| Signal<string>`                                                 |    No    |  `""`   | Case-insensitive search filter matched across configured columns.                                                        |
-| `meta`                | `TMeta`                                                                    |    No    |    —    | Custom metadata or `QRL` action handlers forwarded to header, cell, and pagination components.                           |
-| `pageSize`            | `Signal<number>`                                                           |    No    |    —    | Reactive `Signal<number>` controlling rows per page. When omitted or `<= 0`, all matching rows render.                   |
-| `currentPage`         | `Signal<number>`                                                           |    No    |   `1`   | Reactive 1-indexed `Signal<number>` tracking the active page.                                                            |
-| `manualPagination`    | `boolean`                                                                  |    No    | `false` | Disables internal client-side array slicing for backend-paginated APIs.                                                  |
-| `totalRows`           | `number \| Signal<number>`                                                 |    No    |    —    | Total record count on the backend when `manualPagination` is `true`.                                                     |
-| `onPageChange$`       | `QRL<(page: number) => void>`                                              |    No    |    —    | QRL callback invoked whenever the page changes via `paginationComponent`.                                                |
-| `paginationComponent` | `Component<PaginationState & { onPageChange$, onPageSizeChange$, meta? }>` |    No    |    —    | Custom headless Qwik `component$` rendered below `</table>` inside `container`.                                          |
-| `emptyComponent`      | `Component<object>`                                                        |    No    |    —    | Custom Qwik `component$` rendered when zero records match.                                                               |
-| `onSort$`             | `QRL<(state: SortState) => void>`                                          |    No    |    —    | QRL callback triggered whenever a sortable header is clicked or activated via keyboard.                                  |
-| `manualSort`          | `boolean`                                                                  |    No    | `false` | Disables internal client-side sorting when sorting on a backend.                                                         |
-| `classNames`          | `TableClassNames`                                                          |    No    |    —    | Slot-based CSS classes (`container`, `table`, `thead`, `headerRow`, `th`, `tbody`, `tr`, `td`, `emptyRow`, `emptyCell`). |
+### `ColumnConfig`
 
-### `ColumnConfig<T, TMeta>`
+| Prop              | Type                                                                                                                                                                                                                                                   | Required | Description                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------: | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`              | `Extract<keyof T, string \| number> \| string`                                                                                                                                                                                                         |   Yes    | Row property key or virtual column identifier.                                                                                  |
+| `label`           | `string`                                                                                                                                                                                                                                               |   Yes    | Header text used when `headerComponent` is omitted.                                                                             |
+| `sortable`        | `boolean`                                                                                                                                                                                                                                              |    No    | Enables header sorting. Default: `false`.                                                                                       |
+| `searchable`      | `boolean`                                                                                                                                                                                                                                              |    No    | Includes the column in search filtering. Plain text columns default to `true`; columns with `cellComponent` default to `false`. |
+| `headerClass`     | `string`                                                                                                                                                                                                                                               |    No    | CSS class appended to this column's header.                                                                                     |
+| `cellClass`       | `string`                                                                                                                                                                                                                                               |    No    | CSS class appended to this column's cells.                                                                                      |
+| `headerComponent` | `Component<{ column: ColumnConfig<T, TMeta>; sortDirection: SortDirection; isAllPageSelected: boolean; isSomePageSelected: boolean; toggleVisibleRows$: QRL<() => void>; isAllRowsSelected: boolean; toggleAllRows$: QRL<() => void>; meta?: TMeta }>` |    No    | Custom header renderer.                                                                                                         |
+| `cellComponent`   | `Component<{ row: T; column: ColumnConfig<T, TMeta>; rowId: string; isSelected: boolean; toggleRow$: QRL<(rowId: string) => void>; meta?: TMeta }>`                                                                                                    |    No    | Custom cell renderer.                                                                                                           |
 
-| Property          | Type                                          | Required | Description                                                                                      |
-| :---------------- | :-------------------------------------------- | :------: | :----------------------------------------------------------------------------------------------- |
-| `id`              | `keyof T \| string`                           |   Yes    | Key matching a property on `T` or a custom ID for virtual columns.                               |
-| `label`           | `string`                                      |   Yes    | Display text rendered inside `<th>` when `headerComponent` is omitted.                           |
-| `sortable`        | `boolean`                                     |    No    | Enables click and keyboard (`Enter`/`Space`) sorting (`asc` → `desc` → `null`) with `aria-sort`. |
-| `headerClass`     | `string`                                      |    No    | Extra CSS class appended to this column's `<th>`.                                                |
-| `cellClass`       | `string`                                      |    No    | Extra CSS class appended to this column's `<td>`.                                                |
-| `headerComponent` | `Component<{ column, sortDirection, meta? }>` |    No    | Custom Qwik `component$` rendered inside `<th>`.                                                 |
-| `cellComponent`   | `Component<{ value, row, meta? }>`            |    No    | Custom Qwik `component$` rendered inside `<td>`.                                                 |
+### `TableClassNames`
+
+| Slot         | Applied element                    |
+| ------------ | ---------------------------------- |
+| `container`  | Outer wrapper `<div>`              |
+| `table`      | `<table>`                          |
+| `thead`      | `<thead>`                          |
+| `headerRow`  | Header `<tr>`                      |
+| `th`         | Default header `<th>`              |
+| `tbody`      | `<tbody>`                          |
+| `tr`         | Body `<tr>`                        |
+| `selectedTr` | Appended to a selected body `<tr>` |
+| `td`         | Default body `<td>`                |
+| `emptyRow`   | Empty-state `<tr>`                 |
+| `emptyCell`  | Empty-state `<td colSpan>`         |
 
 ### `PaginationState`
 
-| Property      | Type     | Description                                                               |
-| :------------ | :------- | :------------------------------------------------------------------------ |
-| `currentPage` | `number` | Current 1-indexed active page number (clamped safely to `1..totalPages`). |
-| `pageSize`    | `number` | Active number of rows per page.                                           |
-| `totalRows`   | `number` | Total matching row count (or server-reported `totalRows`).                |
-| `totalPages`  | `number` | Total available pages (`>= 1`).                                           |
+| Property      | Type     | Description                                         |
+| ------------- | -------- | --------------------------------------------------- |
+| `currentPage` | `number` | 1-indexed active page.                              |
+| `pageSize`    | `number` | Configured rows per page.                           |
+| `totalRows`   | `number` | Matching client-side rows or server-reported total. |
+| `totalPages`  | `number` | Available pages, always at least `1`.               |
 
----
+## Performance Guidelines
+
+- Use `useSignal(rowData)` when the table should react to replacement or external reassignment of the complete row array. Use `useStore` for a mutable row array when components should observe additions, removals, or direct property mutations; pass QRL handlers outside row objects and into `meta`.
+- Pass QRL handlers and shared configuration through `meta` instead of creating non-QRL closures across the table API.
+- Keep `pageSize` large enough to avoid unnecessary visible rows, and use `manualPagination` with `totalRows` for server-managed datasets.
+- Use one or more unique, stable `rowKey` properties. Composite keys produce a stable row ID and are used by selection state.
 
 ## License
 
-MIT © Omkar Hankare
+MIT © Omkar D. Hankare
