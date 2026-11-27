@@ -16,6 +16,31 @@ export const getRowKey = <T extends object>(
     .join("-");
 };
 
+export const getValueByPath = (obj: unknown, path: string): unknown => {
+  if (obj == null || typeof obj !== "object") return undefined;
+
+  const record = obj as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(record, path)) {
+    return record[path];
+  }
+
+  if (!path.includes(".")) {
+    return record[path];
+  }
+
+  const segments = path.split(".");
+  let current: unknown = obj;
+
+  for (let i = 0; i < segments.length; i++) {
+    if (current == null || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segments[i]];
+  }
+
+  return current;
+};
+
 export const toAriaSort = (
   sortable: boolean | undefined,
   direction: SortDirection,
