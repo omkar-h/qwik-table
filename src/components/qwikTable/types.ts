@@ -3,8 +3,21 @@ import type { QRL, Component, Signal } from "@builder.io/qwik";
 /** Allowed sorting directions for a column. */
 export type SortDirection = "asc" | "desc" | null;
 
+/** Non-null sort direction passed to custom sort comparators. */
+export type ActiveSortDirection = Exclude<SortDirection, null>;
+
 /** Allowed row selection modes. */
 export type SelectionMode = "multiple" | "single";
+
+/** Map of column IDs to visibility state (`false` hides the column). */
+export type ColumnVisibilityMap = Record<string, boolean>;
+
+/** Custom comparator function for sorting rows by a column. */
+export type SortComparator<T> = (
+  rowA: T,
+  rowB: T,
+  direction: ActiveSortDirection,
+) => number;
 
 /**
  * Represents the current sorting state of the table.
@@ -69,19 +82,38 @@ export interface ColumnConfig<
   TMeta = Record<string, unknown>,
 > {
   /**
-   * Key matching a property on the row data object, or a unique string identifier
-   * for virtual columns (such as an `"actions"` or `"select"` column).
+   * Key matching a property or nested dot-path on the row data object (such as `"address.city"`),
+   * or a unique string identifier for virtual/computed columns (such as `"actions"` or `"select"`).
    */
-  id: Extract<keyof T, string | number> | string;
+  id: Extract<keyof T, string | number> | (string & {});
 
   /** Display text rendered inside the column's `<th>` header cell. */
   label: string;
+
+  /**
+   * Hides the column by default when `true`.
+   * Overridden per column ID when `columnVisibility` specifies a boolean value.
+   * @default false
+   */
+  hidden?: boolean;
+
+  /**
+   * Optional value extractor used for searching, default sorting, and default cell rendering.
+   * Evaluated inside `pipeline.ts` rather than pre-read on `cellComponent` columns.
+   */
+  accessorFn?: (row: T) => unknown;
 
   /**
    * Enables click-to-sort cycling (`asc` → `desc` → `null`) on this column header.
    * @default false
    */
   sortable?: boolean;
+
+  /**
+   * Optional custom comparator used when sorting by this column.
+   * Falls back to standard value comparison when omitted.
+   */
+  sortFn?: SortComparator<T>;
 
   /**
    * Whether `searchQuery` checks this column's values when filtering rows.
@@ -145,10 +177,16 @@ export interface QwikTableProps<
   columnConfig: ColumnConfig<T, TMeta>[];
 
   /**
-   * Required property keys on each row object used to build a unique composite DOM key for `<tr>`.
+   * Top-level property keys on each row object used to build a unique composite DOM key for `<tr>`.
    * Preserves stateful components inside cells when rows are sorted or filtered.
    */
   rowKey: Extract<keyof T, string | number>[];
+
+  /**
+   * Optional reactive visibility map keyed by column `id`.
+   * Setting a column ID to `false` hides it; overrides `ColumnConfig.hidden`.
+   */
+  columnVisibility?: Signal<ColumnVisibilityMap>;
 
   /**
    * Optional search string (or a reactive `Signal<string>`) used to filter rows case-insensitively.
