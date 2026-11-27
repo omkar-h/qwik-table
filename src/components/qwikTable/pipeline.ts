@@ -1,30 +1,17 @@
-import type { PaginationState, SortState } from "./types";
+import { getColumnValue, getValueByPath, isColumnVisible } from "./helper";
+import { TablePipelineInput, TablePipelineOutput } from "./pipelineTypes";
 
-export interface TablePipelineInput<T> {
-  rows: T[];
-  query: string;
-  searchableColIds: string[];
-  sortState: SortState;
-  manualSort: boolean;
-  pageSize: number;
-  currentPage: number;
-  manualPagination: boolean;
-  totalRows?: number;
-}
-
-export interface TablePipelineOutput<T> {
-  visibleRows: T[];
-  allRows: T[];
-  pagination: PaginationState | null;
-}
-
-export const computeTablePipeline = <T extends object>(
-  input: TablePipelineInput<T>,
-): TablePipelineOutput<T> => {
+export const computeTablePipeline = <
+  T extends object,
+  TMeta = Record<string, unknown>,
+>(
+  input: TablePipelineInput<T, TMeta>,
+): TablePipelineOutput<T, TMeta> => {
   const {
     rows,
+    columns,
+    columnVisibility,
     query,
-    searchableColIds,
     sortState,
     manualSort,
     pageSize,
@@ -33,30 +20,51 @@ export const computeTablePipeline = <T extends object>(
     totalRows,
   } = input;
 
+  const visibleColumns = columns.filter((col) =>
+    isColumnVisible(col, columnVisibility),
+  );
+
+  const searchableColumns = visibleColumns.filter(
+    (col) => col.searchable ?? !col.cellComponent,
+  );
+
   const normalizedQuery = query.trim().toLowerCase();
 
-  // 1. Filter
+  // 1. Filter across visible, searchable columns
   const filtered = normalizedQuery
     ? rows.filter((row) =>
-        searchableColIds.some((colId) => {
-          const rawVal = (row as Record<string, unknown>)[colId];
+        searchableColumns.some((col) => {
+          const rawVal = getColumnValue(row, col);
           if (rawVal == null) return false;
           return String(rawVal).toLowerCase().includes(normalizedQuery);
         }),
       )
     : rows;
 
-  // 2. Sort
+  // 2. Sort using column sortFn if defined, otherwise default comparison
   const sorted = (() => {
     if (manualSort) return filtered;
 
     const { columnId, direction } = sortState;
     if (!columnId || !direction) return filtered;
 
-    return [...filtered].sort((a, b) => {
-      const valueA = (a as Record<string, unknown>)[columnId];
-      const valueB = (b as Record<string, unknown>)[columnId];
+    // using columns instead of visibleColumns to preserve sorting state.
+    const activeCol = columns.find((col) => String(col.id) === columnId);
+    const customSortFn = activeCol?.sortFn;
 
+    return [...filtered].sort((a, b) => {
+      if (customSortFn) {
+        return customSortFn(a, b, direction);
+      }
+
+      const valueA = activeCol
+        ? getColumnValue(a, activeCol)
+        : getValueByPath(a, columnId);
+      const valueB = activeCol
+        ? getColumnValue(b, activeCol)
+        : getValueByPath(b, columnId);
+
+      if (valueA == null && valueB == null) return 0;
       if (valueA == null) return 1;
       if (valueB == null) return -1;
 
@@ -73,6 +81,7 @@ export const computeTablePipeline = <T extends object>(
 
   if (!pageSize || pageSize <= 0) {
     return {
+      visibleColumns,
       visibleRows: sorted,
       allRows: sorted,
       pagination: null,
@@ -87,6 +96,7 @@ export const computeTablePipeline = <T extends object>(
     : sorted.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
 
   return {
+    visibleColumns,
     visibleRows,
     allRows: sorted,
     pagination: {

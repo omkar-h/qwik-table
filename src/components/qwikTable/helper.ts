@@ -1,4 +1,4 @@
-import { SortDirection } from "./types";
+import { ColumnConfig, ColumnVisibilityMap, SortDirection } from "./types";
 
 export const cx = (...classes: (string | undefined)[]): string | undefined => {
   const joined = classes.filter(Boolean).join(" ");
@@ -49,4 +49,35 @@ export const toAriaSort = (
   if (direction === "asc") return "ascending";
   if (direction === "desc") return "descending";
   return "none";
+};
+
+export const isColumnVisible = <
+  T extends object,
+  TMeta = Record<string, unknown>,
+>(
+  col: ColumnConfig<T, TMeta>,
+  visibilityMap?: ColumnVisibilityMap,
+): boolean => {
+  const colId = String(col.id);
+  if (
+    visibilityMap &&
+    Object.prototype.hasOwnProperty.call(visibilityMap, colId) &&
+    visibilityMap[colId] !== undefined
+  ) {
+    return visibilityMap[colId] !== false;
+  }
+  return col.hidden !== true;
+};
+
+export const getColumnValue = <
+  T extends object,
+  TMeta = Record<string, unknown>,
+>(
+  row: T,
+  col: ColumnConfig<T, TMeta>,
+): unknown => {
+  if (col.accessorFn) {
+    return col.accessorFn(row);
+  }
+  return getValueByPath(row, String(col.id));
 };

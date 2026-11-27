@@ -5,6 +5,12 @@
 
 `qwik-table-core` is a headless, zero-hydration data table library for Qwik. It provides search, sorting, pagination, row selection, custom renderers, and slot-based styling in an approximately 3.2 kB gzipped package.
 
+| Section                                                          |                                                                      |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [Installation](#installation)                                    | [Quick Start](#quick-start)                                          |
+| [Core Features & Usage Examples](#core-features--usage-examples) | [Complete Props & Types Reference](#complete-props--types-reference) |
+| [Performance Guidelines](#performance-guidelines)                | [License](#license)                                                  |
+
 ## Installation
 
 ```bash
