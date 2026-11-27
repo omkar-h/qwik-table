@@ -5,7 +5,7 @@ import {
   useComputed$,
   useStore,
 } from "@builder.io/qwik";
-import { cx, getRowKey, toAriaSort } from "./helper";
+import { cx, getColumnValue, getRowKey, toAriaSort } from "./helper";
 import { computeTablePipeline } from "./pipeline";
 import {
   computeSelectionFlags,
@@ -39,9 +39,8 @@ export const QwikTable = component$(
     const rawCurrentPage = props.currentPage;
     const rawTotalRows = props.totalRows;
     const manualPagination = Boolean(props.manualPagination);
-    const searchableColIds = props.columnConfig
-      .filter((col) => col.searchable ?? !col.cellComponent)
-      .map((col) => String(col.id));
+    const columns = props.columnConfig;
+    const rawColumnVisibility = props.columnVisibility;
     const rowKeyFields = props.rowKey;
     const rowSelection = props.rowSelection;
     const selectionMode = props.selectionMode ?? "multiple";
@@ -88,10 +87,11 @@ export const QwikTable = component$(
 
       return computeTablePipeline({
         rows: currentRows,
+        columns,
+        columnVisibility: rawColumnVisibility?.value,
         query: isSignal(rawSearchQuery)
           ? rawSearchQuery.value
           : (rawSearchQuery ?? ""),
-        searchableColIds,
         sortState,
         manualSort,
         pageSize: rawPageSize ? rawPageSize.value : 0,
@@ -133,6 +133,7 @@ export const QwikTable = component$(
 
     const selectionMap = rowSelection?.value;
     const pageRows = tableState.value.visibleRows;
+    const visibleColumns = tableState.value.visibleColumns;
     const selectionFlags = computeSelectionFlags(
       selectionMap,
       pageRows,
@@ -146,7 +147,7 @@ export const QwikTable = component$(
           <table class={props.classNames?.table}>
             <thead class={props.classNames?.thead}>
               <tr class={props.classNames?.headerRow}>
-                {props.columnConfig.map((col) => {
+                {visibleColumns.map((col) => {
                   const targetId = String(col.id);
                   const currentDirection: SortDirection =
                     sortState.columnId === targetId
@@ -199,7 +200,7 @@ export const QwikTable = component$(
               {pageRows.length === 0 ? (
                 <tr class={props.classNames?.emptyRow}>
                   <td
-                    colSpan={props.columnConfig.length}
+                    colSpan={Math.max(1, visibleColumns.length)}
                     class={props.classNames?.emptyCell}
                   >
                     {EmptyComp ? <EmptyComp /> : "No records found."}
@@ -219,10 +220,12 @@ export const QwikTable = component$(
                         isSelected ? props.classNames?.selectedTr : undefined,
                       )}
                     >
-                      {props.columnConfig.map((col) => {
+                      {visibleColumns.map((col) => {
                         const colKey = String(col.id);
                         const CellComp = col.cellComponent;
-
+                        const cellValue = CellComp
+                          ? undefined
+                          : getColumnValue(row, col);
                         return (
                           <td
                             key={colKey}
@@ -238,7 +241,7 @@ export const QwikTable = component$(
                                 meta={tableMeta}
                               />
                             ) : (
-                              ((row as Record<string, unknown>)[colKey] as
+                              (cellValue as
                                 | string
                                 | number
                                 | boolean
